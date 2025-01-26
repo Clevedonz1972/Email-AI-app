@@ -1,0 +1,77 @@
+{
+  "name": "email-ai-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Email AI Application",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:e2e": "cypress run",
+    "test:e2e:open": "cypress open",
+    "test:a11y": "jest a11y.test.tsx",
+    "test:perf": "jest performance.test.tsx",
+    "test:all": "npm run test && npm run test:e2e && npm run test:a11y && npm run test:perf",
+    "eject": "react-scripts eject"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.11",
+    "@mui/material": "^5.15.11",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.80",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-scripts": "^5.0.1",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4",
+    "react-router-dom": "^6.22.3",
+    "jwt-decode": "^4.0.0",
+    "@mui/lab": "^5.0.0-alpha.166"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.80",
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19",
+    "typescript": "^4.9.5",
+    "jest-axe": "^8.0.0",
+    "msw": "^2.2.1",
+    "cypress": "^13.6.4",
+    "lighthouse": "^11.5.0",
+    "@cypress/code-coverage": "^3.12.17",
+    "jest-environment-jsdom": "^29.7.0",
+    "jest-junit": "^16.0.0",
+    "ts-jest": "^29.1.2",
+    "webpack-bundle-analyzer": "^4.10.1"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
