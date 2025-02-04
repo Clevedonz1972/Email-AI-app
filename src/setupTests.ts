@@ -1,10 +1,17 @@
 import '@testing-library/jest-dom';
 import { configure } from '@testing-library/react';
+import { toHaveNoViolations } from 'jest-axe';
 
-// Configure longer timeout for accessibility checks
-configure({ asyncUtilTimeout: 5000 });
+// Configure testing library with extended timeout for accessibility tests
+configure({ 
+  testIdAttribute: 'data-testid',
+  asyncUtilTimeout: 5000 
+});
 
-// Mock matchMedia for theme testing
+// Configure jest-axe
+expect.extend(toHaveNoViolations);
+
+// Mock matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: jest.fn().mockImplementation(query => ({
@@ -19,4 +26,25 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
+// Mock ResizeObserver
+global.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+};
+
+// Mock Intersection Observer
+class MockIntersectionObserver {
+  observe = jest.fn();
+  unobserve = jest.fn();
+  disconnect = jest.fn();
+}
+
+Object.defineProperty(window, 'IntersectionObserver', {
+  writable: true,
+  value: MockIntersectionObserver,
+});
+
 // Add any other global mocks or setup here 
+
+configure({ testIdAttribute: 'data-testid' }); 

@@ -1,9 +1,11 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { PriorityView } from '../../components/Dashboard/PriorityView';
 import { useEmailProcessing } from '../../hooks/useEmailProcessing';
+import { useSensoryPreferences } from '../../hooks/useSensoryPreferences';
 
 jest.mock('../../hooks/useEmailProcessing');
+jest.mock('../../hooks/useSensoryPreferences');
 
 describe('PriorityView', () => {
   const mockEmailStats = {
@@ -19,9 +21,19 @@ describe('PriorityView', () => {
     ]
   };
 
+  const mockPreferences = {
+    highContrast: false,
+    reducedMotion: false,
+    fontScale: 1,
+    readingSpeed: 'medium'
+  };
+
   beforeEach(() => {
     (useEmailProcessing as jest.Mock).mockReturnValue({
       emailStats: mockEmailStats
+    });
+    (useSensoryPreferences as jest.Mock).mockReturnValue({
+      preferences: mockPreferences
     });
   });
 
@@ -31,10 +43,26 @@ describe('PriorityView', () => {
     expect(screen.getByText('Urgent Meeting')).toBeInTheDocument();
   });
 
-  it('shows priority distribution', () => {
+  it('handles audio feedback toggle', () => {
     render(<PriorityView />);
-    const progressBar = screen.getByRole('progressbar');
-    expect(progressBar).toBeInTheDocument();
-    expect(progressBar).toHaveAttribute('aria-valuenow', '16.67'); // (3/18) * 100
+    const audioSwitch = screen.getByRole('switch', { name: /audio feedback/i });
+    fireEvent.click(audioSwitch);
+    expect(audioSwitch).toBeChecked();
+  });
+
+  it('applies high contrast mode when enabled', () => {
+    (useSensoryPreferences as jest.Mock).mockReturnValue({
+      preferences: { ...mockPreferences, highContrast: true }
+    });
+    render(<PriorityView />);
+    const paper = screen.getByRole('region');
+    expect(paper).toHaveStyle({ backgroundColor: '#000' });
+  });
+
+  it('handles expand/collapse correctly', () => {
+    render(<PriorityView />);
+    const expandButton = screen.getByLabelText('Show less');
+    fireEvent.click(expandButton);
+    expect(screen.queryByText('Urgent Meeting')).not.toBeVisible();
   });
 }); 

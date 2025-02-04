@@ -1,16 +1,31 @@
 declare namespace Cypress {
   interface Chainable {
-    login(email?: string, password?: string): Chainable<void>;
+    login(): void;
+    createTemplate(template: any): void;
     checkA11y(): Chainable<void>;
   }
 }
 
-Cypress.Commands.add('login', (email = 'test@example.com', password = 'password123') => {
-  cy.visit('/login');
-  cy.get('input[name="email"]').type(email);
-  cy.get('input[name="password"]').type(password);
-  cy.get('button[type="submit"]').click();
-  cy.url().should('include', '/dashboard');
+// Login command
+Cypress.Commands.add('login', () => {
+  cy.request('POST', '/api/auth/login', {
+    email: Cypress.env('TEST_USER_EMAIL'),
+    password: Cypress.env('TEST_USER_PASSWORD')
+  }).then((response) => {
+    window.localStorage.setItem('email_ai_access_token', response.body.access_token);
+  });
+});
+
+// Create template command
+Cypress.Commands.add('createTemplate', (template) => {
+  cy.request({
+    method: 'POST',
+    url: '/api/templates',
+    headers: {
+      Authorization: `Bearer ${window.localStorage.getItem('email_ai_access_token')}`
+    },
+    body: template
+  });
 });
 
 Cypress.Commands.add('checkA11y', () => {

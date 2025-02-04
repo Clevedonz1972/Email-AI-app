@@ -1,24 +1,28 @@
 import * as Sentry from '@sentry/react';
-import { BrowserTracing } from '@sentry/tracing';
+import { Integrations } from '@sentry/tracing';
 
 export const initializeMonitoring = () => {
   if (process.env.NODE_ENV === 'production') {
     Sentry.init({
       dsn: process.env.REACT_APP_SENTRY_DSN,
-      integrations: [new BrowserTracing()],
-      tracesSampleRate: 0.2,
-      // Optimize for neurodivergent user experience monitoring
-      beforeBreadcrumb(breadcrumb) {
-        // Track user interactions with accessibility features
-        if (breadcrumb.category === 'ui.click') {
-          const target = breadcrumb.message?.includes('aria-');
-          if (target) {
-            breadcrumb.level = 'info';
-            breadcrumb.data = { ...breadcrumb.data, accessibilityEvent: true };
-          }
+      integrations: [new Integrations.BrowserTracing()],
+      tracesSampleRate: 1.0,
+      beforeSend(event) {
+        // Sanitize sensitive data
+        if (event.request?.headers) {
+          delete event.request.headers['Authorization'];
         }
-        return breadcrumb;
+        return event;
       }
+    });
+  }
+};
+
+export const trackError = (error: Error, context?: Record<string, any>) => {
+  console.error(error);
+  if (process.env.NODE_ENV === 'production') {
+    Sentry.captureException(error, {
+      extra: context
     });
   }
 }; 
