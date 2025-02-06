@@ -8,9 +8,11 @@ import {
   Button,
   Box,
   Typography,
-  Chip
+  Chip,
+  Paper,
+  Grid
 } from '@mui/material';
-import { EmailTemplate, TemplateVariable } from '../../types/template';
+import type { EmailTemplate, TemplateVariable } from '@/types/template';
 
 interface TemplateEditorProps {
   open: boolean;
@@ -28,14 +30,14 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
-  const [variables, setVariables] = useState<TemplateVariable[]>([]);
+  const [variables, setVariables] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (template) {
       setName(template.name);
-      setSubject(template.subject_template);
-      setContent(template.content_template);
+      setSubject(template.subject);
+      setContent(template.content);
       setVariables(template.variables || []);
     } else {
       setName('');
@@ -45,14 +47,16 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
     }
   }, [template]);
 
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     try {
       setError(null);
       await onSave({
         name,
-        subject_template: subject,
-        content_template: content,
-        variables
+        subject,
+        content,
+        variables,
+        updatedAt: new Date()
       });
       onClose();
     } catch (err) {
@@ -76,57 +80,76 @@ export const TemplateEditor: React.FC<TemplateEditorProps> = ({
         {template ? 'Edit Template' : 'Create New Template'}
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-          <TextField
-            label="Template Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            fullWidth
-            required
-          />
-          <TextField
-            label="Subject Template"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            fullWidth
-            required
-          />
-          <TextField
-            label="Content Template"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            multiline
-            rows={6}
-            fullWidth
-            required
-          />
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Available Variables:
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {variables.map((variable) => (
-                <Chip
-                  key={variable.name}
-                  label={variable.name}
-                  onClick={() => handleVariableClick(variable)}
-                  variant="outlined"
+        <Paper sx={{ p: 3 }}>
+          <form onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  {template ? 'Edit Template' : 'Create New Template'}
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Template Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
-              ))}
-            </Box>
-          </Box>
-          {error && (
-            <Typography color="error" variant="body2">
-              {error}
-            </Typography>
-          )}
-        </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label="Content"
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  required
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <Box>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Available Variables:
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                    {variables.map((variable) => (
+                      <Chip
+                        key={variable}
+                        label={variable}
+                        onClick={() => handleVariableClick({ name: variable } as TemplateVariable)}
+                        variant="outlined"
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Button type="submit" variant="contained" color="primary">
+                  {template ? 'Update Template' : 'Create Template'}
+                </Button>
+              </Grid>
+            </Grid>
+          </form>
+        </Paper>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" color="primary">
-          Save Template
-        </Button>
       </DialogActions>
     </Dialog>
   );

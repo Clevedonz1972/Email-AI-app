@@ -18,11 +18,14 @@ export const initializeMonitoring = () => {
   }
 };
 
-export const trackError = (error: Error, context?: Record<string, any>) => {
-  console.error(error);
+export const logError = (error: Error, info?: Record<string, unknown>) => {
   if (process.env.NODE_ENV === 'production') {
-    Sentry.captureException(error, {
-      extra: context
+    Sentry.withScope((scope) => {
+      if (info) {
+        scope.setContext('additional', info);
+      }
+      Sentry.captureException(error);
     });
   }
+  console.error('Error:', error, info);
 }; 

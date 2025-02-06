@@ -9,21 +9,9 @@
     "REACT_APP_API_URL": "@api_url"
   },
   "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "build" }
-    }
+    { "src": "server.js", "use": "@vercel/node" }
   ],
   "routes": [
-    {
-      "src": "/static/(.*)",
-      "headers": { "cache-control": "public, max-age=31536000, immutable" },
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/[^.]+",
-      "dest": "/index.html"
-    }
+    { "src": "/(.*)", "dest": "/server.js" }
   ]
 } 

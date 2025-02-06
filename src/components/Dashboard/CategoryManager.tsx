@@ -14,7 +14,7 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondary,
+  ListItemSecondaryAction,
   useTheme 
 } from '@mui/material';
 import { styled } from '@mui/material/styles';

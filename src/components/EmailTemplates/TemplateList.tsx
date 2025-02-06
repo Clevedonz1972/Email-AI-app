@@ -1,64 +1,76 @@
-import React, { memo } from 'react';
-import { 
-  List, 
-  ListItem, 
-  ListItemText, 
+import React from 'react';
+import {
+  List,
+  ListItem,
+  ListItemText,
   ListItemSecondaryAction,
   IconButton,
   Typography,
-  Paper
+  Paper,
+  Box
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { EmailTemplate } from '../../types/template';
+import type { EmailTemplate } from '@/types/template';
 
 interface TemplateListProps {
   templates: EmailTemplate[];
-  onEditTemplate: (template: EmailTemplate) => void;
-  onDeleteTemplate: (templateId: number) => void;
+  onEdit: (template: EmailTemplate) => void;
+  onDelete: (templateId: string) => Promise<void>;
 }
 
-export const TemplateList = memo<TemplateListProps>(({
+export const TemplateList: React.FC<TemplateListProps> = ({
   templates,
-  onEditTemplate,
-  onDeleteTemplate
+  onEdit,
+  onDelete
 }) => {
   if (templates.length === 0) {
     return (
-      <Paper sx={{ p: 2, textAlign: 'center' }}>
+      <Box p={3} textAlign="center">
         <Typography color="textSecondary">
-          No email templates yet. Create one to get started!
+          No templates available. Create one to get started.
         </Typography>
-      </Paper>
+      </Box>
     );
   }
 
   return (
-    <List>
-      {templates.map((template) => (
-        <ListItem key={template.id}>
-          <ListItemText
-            primary={template.name}
-            secondary={template.subject_template}
-          />
-          <ListItemSecondaryAction>
-            <IconButton 
-              edge="end" 
-              aria-label="edit"
-              onClick={() => onEditTemplate(template)}
-            >
-              <EditIcon />
-            </IconButton>
-            <IconButton
-              edge="end"
-              aria-label="delete"
-              onClick={() => onDeleteTemplate(template.id)}
-            >
-              <DeleteIcon />
-            </IconButton>
-          </ListItemSecondaryAction>
-        </ListItem>
-      ))}
-    </List>
+    <Paper>
+      <List>
+        {templates.map((template) => (
+          <ListItem key={template.id} divider>
+            <ListItemText
+              primary={template.name}
+              secondary={template.subject}
+              secondaryTypographyProps={{
+                sx: {
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }
+              }}
+            />
+            <ListItemSecondaryAction>
+              <IconButton
+                edge="end"
+                aria-label="edit"
+                onClick={() => onEdit(template)}
+                sx={{ mr: 1 }}
+              >
+                <EditIcon />
+              </IconButton>
+              <IconButton
+                edge="end"
+                aria-label="delete"
+                onClick={() => onDelete(template.id)}
+                color="error"
+              >
+                <DeleteIcon />
+              </IconButton>
+            </ListItemSecondaryAction>
+          </ListItem>
+        ))}
+      </List>
+    </Paper>
   );
-}); 
+}; 

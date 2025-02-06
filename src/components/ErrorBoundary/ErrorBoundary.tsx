@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo } from 'react';
-import * as Sentry from '@sentry/react';
+import { Box, Typography, Button } from '@mui/material';
+import { logError } from '@/utils/errorHandling';
 
 interface Props {
   children: React.ReactNode;
@@ -7,39 +8,63 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  errorMessage: string | undefined;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false
+export class ErrorBoundary extends Component<Props, State> {
+  constructor(props: Props) {
+    super(props);
+    this.state = {
+      hasError: false,
+      errorMessage: undefined
+    };
+  }
+
+  static getDerivedStateFromError(error: Error): State {
+    return {
+      hasError: true,
+      errorMessage: error.message || 'An unexpected error occurred'
+    };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    const errorMessage = error?.message || 'An unexpected error occurred';
+    this.setState({
+      hasError: true,
+      errorMessage: errorMessage
+    });
+    logError(error, { componentStack: errorInfo.componentStack });
+  }
+
+  handleReset = () => {
+    this.setState({ hasError: false, errorMessage: undefined });
   };
 
-  public static getDerivedStateFromError(_: Error): State {
-    return { hasError: true };
-  }
-
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
-    
-    if (process.env.NODE_ENV === 'production') {
-      Sentry.captureException(error, { extra: errorInfo });
-    }
-  }
-
-  public render() {
+  render() {
     if (this.state.hasError) {
       return (
-        <div role="alert">
-          <h2>Something went wrong</h2>
-          <button
-            onClick={() => {
-              this.setState({ hasError: false });
-              window.location.reload();
-            }}
+        <Box
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          p={3}
+          textAlign="center"
+        >
+          <Typography variant="h5" color="error" gutterBottom>
+            Something went wrong
+          </Typography>
+          <Typography color="textSecondary" paragraph>
+            {this.state.errorMessage}
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={this.handleReset}
           >
-            Try again
-          </button>
-        </div>
+            Try Again
+          </Button>
+        </Box>
       );
     }
 

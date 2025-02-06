@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: your-app-name   # Change to your desired service name
+    env: node           # Assuming you're using Node.js
+    buildCommand: "npm install"    # Adjust if needed
+    startCommand: "npm start"      # Should match your package.json script
+    plan: free          # Render free plan; upgrade if needed 

@@ -29,23 +29,29 @@ const SettingRow = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(2),
 }));
 
-export const AccessibilitySettings: React.FC = () => {
+interface AccessibilitySettings {
+  textScale: number;
+  highContrast: boolean;
+  reducedMotion: boolean;
+  // ... other settings
+}
+
+interface Props {
+  settings: AccessibilitySettings;
+  onSettingChange: (setting: keyof AccessibilitySettings, value: number | boolean) => void;
+}
+
+export const AccessibilitySettings: React.FC<Props> = ({ settings, onSettingChange }) => {
   const theme = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [settings, setSettings] = useState({
-    highContrast: false,
-    largeText: false,
-    reducedMotion: false,
-    textScale: 100,
-    animationSpeed: 1,
-  });
 
   const handleSettingChange = (setting: string, value: boolean | number) => {
-    setSettings((prev) => ({
-      ...prev,
-      [setting]: value,
-    }));
-    // Here you would also persist the settings and apply them globally
+    onSettingChange(setting as keyof AccessibilitySettings, value);
+  };
+
+  const handleSliderChange = (_: Event, value: number | number[]) => {
+    // Ensure we're passing a single number
+    onSettingChange('textScale', typeof value === 'number' ? value : value[0]);
   };
 
   return (
@@ -114,7 +120,7 @@ export const AccessibilitySettings: React.FC = () => {
               </Box>
               <Slider
                 value={settings.textScale}
-                onChange={(_, value) => handleSettingChange('textScale', value)}
+                onChange={handleSliderChange}
                 min={80}
                 max={200}
                 step={10}

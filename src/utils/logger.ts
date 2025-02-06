@@ -1,10 +1,7 @@
-import { LogLevel } from './types';
+import type { LogLevel, LogContext, LogMessage as ILogMessage } from '@/utils/types';
 
-interface LogMessage {
-  level: LogLevel;
-  message: string;
-  context?: Record<string, any>;
-  timestamp: string;
+// Extend the base LogMessage interface with additional properties
+interface LogMessage extends ILogMessage {
   userId?: string;
   sessionId: string;
 }
@@ -22,11 +19,13 @@ class Logger {
     return Logger.instance;
   }
 
-  async log(level: LogLevel, message: string, context?: Record<string, any>) {
+  async log(level: LogLevel, message: string | Error, context?: Record<string, unknown>) {
     const logMessage: LogMessage = {
       level,
-      message,
-      context,
+      message: message instanceof Error ? message.message : message,
+      context: message instanceof Error 
+        ? { ...context, stack: message.stack }
+        : context,
       timestamp: new Date().toISOString(),
       sessionId: this.getSessionId(),
       userId: this.getUserId()
@@ -40,8 +39,10 @@ class Logger {
   }
 
   private async sendToLoggingService(logMessage: LogMessage) {
+    if (!this.loggingEndpoint) return;
+
     try {
-      await fetch(this.loggingEndpoint!, {
+      await fetch(this.loggingEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,19 +66,34 @@ class Logger {
       case 'info':
         console.info(message, context);
         break;
-      default:
+      case 'debug':
         console.log(message, context);
+        break;
     }
   }
 
   private getSessionId(): string {
-    // Implement session tracking
-    return 'session-id';
+    return sessionStorage.getItem('sessionId') || 'unknown-session';
   }
 
   private getUserId(): string | undefined {
-    // Get user ID from auth context
-    return undefined;
+    return localStorage.getItem('userId') || undefined;
+  }
+
+  info(message: string, context?: Record<string, unknown>) {
+    return this.log('info', message, context);
+  }
+
+  error(message: string | Error, context?: Record<string, unknown>) {
+    return this.log('error', message, context);
+  }
+
+  warn(message: string, context?: Record<string, unknown>) {
+    return this.log('warn', message, context);
+  }
+
+  debug(message: string, context?: Record<string, unknown>) {
+    return this.log('debug', message, context);
   }
 }
 

@@ -1,48 +1,42 @@
-import React, { ReactElement } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import React from 'react';
+import { render as rtlRender } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material/styles';
-import { createAppTheme } from '../theme/theme';
-import { Email } from '../components/EmailList/EmailList';
+import { EmailProvider } from '@/contexts/EmailContext';
+import { theme } from '@/theme';
+import type { EmailMessage } from '@/types/email';
 
-const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
+const AllTheProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <ThemeProvider theme={createAppTheme('light')}>
-      {children}
+    <ThemeProvider theme={theme}>
+      <EmailProvider>
+        {children}
+      </EmailProvider>
     </ThemeProvider>
   );
 };
 
-const customRender = (
-  ui: ReactElement,
-  options?: Omit<RenderOptions, 'wrapper'>,
-) => render(ui, { wrapper: AllTheProviders, ...options });
+const render = (ui: React.ReactElement, options = {}) =>
+  rtlRender(ui, { wrapper: AllTheProviders, ...options });
 
 export * from '@testing-library/react';
-export { customRender as render };
+export { render };
 
-export const mockEmails: Email[] = [
+export const mockEmails: readonly EmailMessage[] = [
   {
     id: '1',
     sender: {
       name: 'John Doe',
-      email: 'john@example.com',
+      email: 'john@example.com'
     },
     subject: 'Important Meeting',
-    preview: 'Please review the attached documents before our meeting tomorrow.',
-    timestamp: '2024-03-20T10:00:00Z',
+    content: 'Meeting details...',
+    preview: 'Meeting details...',
+    timestamp: new Date().toISOString(),
     priority: 'HIGH',
-    isRead: false,
-  },
-  {
-    id: '2',
-    sender: {
-      name: 'Jane Smith',
-      email: 'jane@example.com',
-    },
-    subject: 'Project Update',
-    preview: 'Here is the latest status update on the current project.',
-    timestamp: '2024-03-20T09:30:00Z',
-    priority: 'MEDIUM',
-    isRead: true,
-  },
+    is_read: false,
+    category: 'inbox',
+    processed: true,
+    stress_level: 'HIGH',
+    summary: 'Urgent meeting discussion'
+  }
 ]; 

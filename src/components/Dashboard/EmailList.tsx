@@ -10,6 +10,7 @@ import {
   Paper,
   Tooltip,
   useTheme,
+  ListItemIcon,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -17,25 +18,14 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-
-interface Email {
-  id: string;
-  subject: string;
-  sender: string;
-  preview: string;
-  timestamp: string;
-  priority: string;
-  stress_level: string;
-  category: string;
-  is_read: boolean;
-  ai_summary?: string;
-  action_items?: string[];
-}
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import type { EmailMessage, ActionItem } from '@/types/email';
 
 interface EmailListProps {
-  emails: Email[];
+  emails: readonly EmailMessage[];
   selectedCategory: string;
   stressFilter: string;
+  isLoading?: boolean;
 }
 
 const EmailItem = styled(Paper, {
@@ -68,10 +58,26 @@ const StressChip = styled(Chip)<{ level: string }>(({ theme, level }) => ({
       : theme.palette.success.light,
 }));
 
+interface ActionItemProps {
+  item: ActionItem;
+  index: number;
+  emailId: string;
+}
+
+const ActionItemComponent: React.FC<ActionItemProps> = ({ item, index, emailId }) => (
+  <ListItem key={`${emailId}-action-${index}`} sx={{ py: 0.5 }}>
+    <ListItemIcon sx={{ minWidth: 36 }}>
+      <AssignmentIcon color="action" fontSize="small" />
+    </ListItemIcon>
+    <Typography variant="body2">{item.description}</Typography>
+  </ListItem>
+);
+
 export const EmailList: React.FC<EmailListProps> = ({
   emails,
   selectedCategory,
   stressFilter,
+  isLoading,
 }) => {
   const theme = useTheme();
   const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
@@ -97,6 +103,28 @@ export const EmailList: React.FC<EmailListProps> = ({
       default:
         return <CheckCircleIcon color="success" />;
     }
+  };
+
+  const renderActionItems = (email: EmailMessage) => {
+    if (!email.action_items?.length) return null;
+    
+    return (
+      <Box component="section" aria-label="Action items">
+        <Typography variant="subtitle2" color="primary" gutterBottom>
+          Action Items
+        </Typography>
+        <List dense aria-label="Action items list">
+          {email.action_items.map((item, index) => (
+            <ActionItemComponent
+              key={`${email.id}-action-${index}`}
+              item={item}
+              index={index}
+              emailId={email.id}
+            />
+          ))}
+        </List>
+      </Box>
+    );
   };
 
   if (filteredEmails.length === 0) {
@@ -129,7 +157,7 @@ export const EmailList: React.FC<EmailListProps> = ({
                   {email.subject}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  From: {email.sender}
+                  From: {email.sender.name} ({email.sender.email})
                 </Typography>
               </Box>
               <Box display="flex" alignItems="center">
@@ -160,29 +188,16 @@ export const EmailList: React.FC<EmailListProps> = ({
 
             <Collapse in={expandedEmail === email.id}>
               <Box mt={2}>
-                {email.ai_summary && (
-                  <Box mb={2}>
-                    <Typography variant="subtitle2" color="primary">
+                {email.summary && (
+                  <Box mb={2} component="section" aria-label="Email summary">
+                    <Typography variant="subtitle2" color="primary" gutterBottom>
                       AI Summary
                     </Typography>
-                    <Typography variant="body2">{email.ai_summary}</Typography>
+                    <Typography variant="body2">{email.summary}</Typography>
                   </Box>
                 )}
 
-                {email.action_items && email.action_items.length > 0 && (
-                  <Box>
-                    <Typography variant="subtitle2" color="primary">
-                      Action Items
-                    </Typography>
-                    <List dense>
-                      {email.action_items.map((item, index) => (
-                        <ListItem key={index}>
-                          <Typography variant="body2">• {item}</Typography>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </Box>
-                )}
+                {renderActionItems(email)}
               </Box>
             </Collapse>
           </EmailItem>

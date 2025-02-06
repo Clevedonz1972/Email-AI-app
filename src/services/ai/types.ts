@@ -1,12 +1,18 @@
+import type { Priority } from '@/types/email';
+
 export interface EmailSummary {
-  original: string;
   summary: string;
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-  suggestedActions?: string[];
+  priority: Priority;
+  stress_level: string;
+  action_required: boolean;
 }
 
-export interface AIResponse {
+export interface ReplyContent {
+  content: string;
+}
+
+export interface AIResponse<T = EmailSummary | ReplyContent> {
   success: boolean;
-  data?: EmailSummary;
+  data?: T;
   error?: string;
 } 

@@ -1,18 +1,21 @@
+import type { EmailMessage } from '@/types/email';
+
 export interface TemplateVariable {
   name: string;
-  description: string;
+  defaultValue?: string;
   required: boolean;
 }
 
 export interface EmailTemplate {
-  id: number;
+  id: string;
   name: string;
-  subject_template: string;
-  content_template: string;
-  variables: TemplateVariable[];
-  category_id?: number;
-  created_at: string;
-  updated_at: string;
+  subject: string;
+  content: string;
+  variables: string[];
+  category: string;
+  lastUsed?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CreateTemplateDto {
@@ -23,4 +26,10 @@ export interface CreateTemplateDto {
   category_id?: number;
 }
 
-export interface UpdateTemplateDto extends Partial<CreateTemplateDto> {} 
+export interface UpdateTemplateDto extends Partial<CreateTemplateDto> {}
+
+export interface ProcessedTemplate {
+  template: EmailTemplate;
+  email: EmailMessage;
+  variables: Record<string, string>;
+} 

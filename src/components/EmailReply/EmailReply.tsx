@@ -10,15 +10,12 @@ import {
   Alert
 } from '@mui/material';
 import { useAI } from '../../hooks/useAI';
+import type { EmailMessage } from '@/types/email';
 
 interface EmailReplyProps {
   open: boolean;
   onClose: () => void;
-  originalEmail: {
-    subject: string;
-    content: string;
-    sender: string;
-  };
+  originalEmail: EmailMessage;
   onSend: (reply: string) => Promise<void>;
 }
 

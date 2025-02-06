@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Grid, Paper, Typography, useTheme, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { EmailList } from './EmailList';
+import { EmailList } from '../EmailList/EmailList';
 import { StressLevelIndicator } from './StressLevelIndicator';
 import { CategoryManager } from './CategoryManager';
 import { AnalyticsSummary } from './AnalyticsSummary';
-import { useEmailContext } from '../../contexts/EmailContext';
-import { ErrorBoundary } from '../ErrorBoundary';
+import { useEmailContext } from '@/contexts/EmailContext';
 import { AccessibilitySettings } from '../Settings/AccessibilitySettings';
+import type { EmailMessage, StressLevel } from '@/types/email';
 
 const DashboardContainer = styled(Box)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -37,15 +37,40 @@ interface EmailDashboardProps {
   // Add props here
 }
 
+// Add interface for accessibility settings
+interface AccessibilitySettingsState {
+  textScale: number;
+  highContrast: boolean;
+  reducedMotion: boolean;
+}
+
 export const EmailDashboard: React.FC<EmailDashboardProps> = () => {
   const theme = useTheme();
   const { emails, loading, error, fetchEmails } = useEmailContext();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [stressFilter, setStressFilter] = useState<string>('all');
+  const [currentStressLevel, setCurrentStressLevel] = useState<StressLevel>('HIGH');
+  // Add state for accessibility settings
+  const [accessibilitySettings, setAccessibilitySettings] = useState<AccessibilitySettingsState>({
+    textScale: 100,
+    highContrast: false,
+    reducedMotion: false
+  });
 
   useEffect(() => {
-    fetchEmails({ category: selectedCategory, stressLevel: stressFilter });
-  }, [selectedCategory, stressFilter, fetchEmails]);
+    fetchEmails({ category: selectedCategory, stressLevel: currentStressLevel });
+  }, [selectedCategory, currentStressLevel, fetchEmails]);
+
+  // Add handler for settings changes
+  const handleSettingChange = (setting: keyof AccessibilitySettingsState, value: number | boolean) => {
+    setAccessibilitySettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
+  };
+
+  const filteredEmails = emails.filter(email => 
+    currentStressLevel === 'all' || email.stress_level === currentStressLevel
+  );
 
   if (error) {
     return (
@@ -61,61 +86,46 @@ export const EmailDashboard: React.FC<EmailDashboardProps> = () => {
   }
 
   return (
-    <ErrorBoundary>
-      <DashboardContainer>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <AccessibilitySettings />
-          </Grid>
-          
-          <Grid item xs={12} md={8}>
-            <Section>
-              <Typography variant="h5" gutterBottom>
-                Your Emails
-              </Typography>
-              {loading ? (
-                <Box display="flex" justifyContent="center" p={3}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <EmailList 
-                  emails={emails}
-                  selectedCategory={selectedCategory}
-                  stressFilter={stressFilter}
-                />
-              )}
-            </Section>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <DashboardGrid container spacing={2}>
-              <Grid item xs={12}>
-                <Section>
-                  <StressLevelIndicator 
-                    onFilterChange={setStressFilter}
-                    currentFilter={stressFilter}
-                  />
-                </Section>
-              </Grid>
-              
-              <Grid item xs={12}>
-                <Section>
-                  <CategoryManager
-                    onCategoryChange={setSelectedCategory}
-                    selectedCategory={selectedCategory}
-                  />
-                </Section>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Section>
-                  <AnalyticsSummary />
-                </Section>
-              </Grid>
-            </DashboardGrid>
-          </Grid>
+    <Box sx={{ flexGrow: 1, p: 3 }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <AccessibilitySettings 
+            settings={accessibilitySettings}
+            onSettingChange={handleSettingChange}
+          />
         </Grid>
-      </DashboardContainer>
-    </ErrorBoundary>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <StressLevelIndicator level={currentStressLevel} />
+          </Paper>
+        </Grid>
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2 }}>
+            <EmailList 
+              emails={filteredEmails}
+              isLoading={loading}
+            />
+          </Paper>
+        </Grid>
+        <Grid item xs={12} md={4}>
+          <DashboardGrid container spacing={2}>
+            <Grid item xs={12}>
+              <Section>
+                <CategoryManager
+                  onCategoryChange={setSelectedCategory}
+                  selectedCategory={selectedCategory}
+                />
+              </Section>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Section>
+                <AnalyticsSummary />
+              </Section>
+            </Grid>
+          </DashboardGrid>
+        </Grid>
+      </Grid>
+    </Box>
   );
 }; 

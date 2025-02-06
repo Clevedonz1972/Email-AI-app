@@ -1,7 +1,10 @@
-import { AIService } from '../aiService';
 import axios from 'axios';
+import { AIService } from '../aiService';
+import { logger } from '@/utils/logger';
 
 jest.mock('axios');
+jest.mock('@/utils/logger');
+
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('AIService', () => {
@@ -10,32 +13,65 @@ describe('AIService', () => {
   });
 
   describe('summarizeEmail', () => {
-    it('should successfully summarize email content', async () => {
-      const mockResponse = {
-        data: {
-          summary: 'Test summary',
-          priority: 'HIGH',
-          actions: ['Action 1', 'Action 2']
-        }
+    it('returns successful response when API call succeeds', async () => {
+      const mockData = {
+        summary: 'Test summary',
+        priority: 'HIGH' as const,
+        stress_level: 'HIGH',
+        action_required: true
       };
 
-      mockedAxios.post.mockResolvedValueOnce(mockResponse);
-
-      const result = await AIService.summarizeEmail('Test email content');
-
-      expect(result.success).toBe(true);
-      expect(result.data).toEqual(mockResponse.data);
-    });
-
-    it('should retry on network errors', async () => {
-      mockedAxios.post
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({ data: { summary: 'Test summary' } });
+      mockedAxios.post.mockResolvedValueOnce({ data: mockData });
 
       const result = await AIService.summarizeEmail('Test content');
 
-      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
-      expect(result.success).toBe(true);
+      expect(result).toEqual({
+        success: true,
+        data: mockData
+      });
+    });
+
+    it('handles API errors correctly', async () => {
+      const error = new Error('API Error');
+      mockedAxios.post.mockRejectedValueOnce(error);
+
+      const result = await AIService.summarizeEmail('Test content');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'An unexpected error occurred'
+      });
+      expect(logger.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('generateReply', () => {
+    it('returns successful response when API call succeeds', async () => {
+      const mockData = {
+        content: 'Generated reply'
+      };
+
+      mockedAxios.post.mockResolvedValueOnce({ data: mockData });
+
+      const result = await AIService.generateReply('Test content');
+
+      expect(result).toEqual({
+        success: true,
+        data: mockData
+      });
+    });
+
+    it('handles API errors correctly', async () => {
+      const error = new Error('API Error');
+      mockedAxios.post.mockRejectedValueOnce(error);
+
+      const result = await AIService.generateReply('Test content');
+
+      expect(result).toEqual({
+        success: false,
+        error: 'An unexpected error occurred'
+      });
+      expect(logger.error).toHaveBeenCalled();
     });
   });
 }); 

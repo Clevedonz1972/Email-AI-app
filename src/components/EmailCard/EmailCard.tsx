@@ -1,105 +1,101 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  Chip,
-  CircularProgress,
+import React from 'react';
+import {
+  Card,
+  CardContent,
+  Typography,
+  IconButton,
   Box,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  Chip
 } from '@mui/material';
-import { Assignment, Error } from '@mui/icons-material';
-import { useAI } from '../../hooks/useAI';
-import { EmailSummary } from '../../services/ai/types';
+import MailIcon from '@mui/icons-material/Mail';
+import FlagIcon from '@mui/icons-material/Flag';
+import type { EmailMessage } from '@/types/email';
 
 interface EmailCardProps {
-  email: {
-    id: string;
-    sender: string;
-    subject: string;
-    content: string;
-    timestamp: string;
-  };
+  email: EmailMessage;
+  onMarkRead?: (id: string) => void;
+  onFlag?: (id: string) => void;
 }
 
-export const EmailCard: React.FC<EmailCardProps> = ({ email }) => {
-  const { analyzeEmail, loading, error } = useAI();
-  const [analysis, setAnalysis] = useState<EmailSummary | null>(null);
+export const EmailCard: React.FC<EmailCardProps> = ({
+  email,
+  onMarkRead,
+  onFlag
+}) => {
+  const handleMarkRead = () => {
+    onMarkRead?.(email.id);
+  };
 
-  useEffect(() => {
-    const performAnalysis = async () => {
-      const result = await analyzeEmail(email.content);
-      if (result) {
-        setAnalysis(result);
-      }
-    };
-    performAnalysis();
-  }, [email.content]);
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'error';
-      case 'MEDIUM': return 'warning';
-      case 'LOW': return 'success';
-      default: return 'default';
-    }
+  const handleFlag = () => {
+    onFlag?.(email.id);
   };
 
   return (
-    <Card variant="outlined" sx={{ mb: 2 }}>
+    <Card 
+      sx={{ 
+        mb: 2,
+        borderLeft: 6,
+        borderLeftColor: getPriorityColor(email.priority)
+      }}
+    >
       <CardContent>
-        <Typography variant="h6" gutterBottom>
-          {email.subject}
-        </Typography>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">
+            {email.subject}
+          </Typography>
+          <Box>
+            <IconButton onClick={handleMarkRead} aria-label="mark as read">
+              <MailIcon color={email.is_read ? 'disabled' : 'primary'} />
+            </IconButton>
+            <IconButton onClick={handleFlag} aria-label="flag as urgent">
+              <FlagIcon />
+            </IconButton>
+          </Box>
+        </Box>
         <Typography color="textSecondary" gutterBottom>
-          From: {email.sender}
+          From: {email.sender.name} ({email.sender.email})
         </Typography>
-        
-        {loading && (
-          <Box display="flex" justifyContent="center" my={2}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
-
-        {error && (
-          <Box display="flex" alignItems="center" color="error.main" my={2}>
-            <Error sx={{ mr: 1 }} />
-            <Typography variant="body2">{error}</Typography>
-          </Box>
-        )}
-
-        {analysis && (
-          <>
-            <Box my={2}>
-              <Chip 
-                label={analysis.priority}
-                color={getPriorityColor(analysis.priority) as any}
-                size="small"
-                sx={{ mr: 1 }}
-              />
-              <Typography variant="body1" sx={{ mt: 1 }}>
-                {analysis.summary}
+        <Typography variant="body2" paragraph>
+          {email.preview}
+        </Typography>
+        {email.processed && (
+          <Box mt={1}>
+            <Chip 
+              label={email.priority} 
+              size="small" 
+              color={getPriorityChipColor(email.priority)}
+              sx={{ mr: 1 }}
+            />
+            {email.summary && (
+              <Typography variant="body2" color="textSecondary">
+                Summary: {email.summary}
               </Typography>
-            </Box>
-
-            {analysis.suggestedActions && analysis.suggestedActions.length > 0 && (
-              <List dense>
-                {analysis.suggestedActions.map((action, index) => (
-                  <ListItem key={index}>
-                    <ListItemIcon>
-                      <Assignment fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText primary={action} />
-                  </ListItem>
-                ))}
-              </List>
             )}
-          </>
+          </Box>
         )}
       </CardContent>
     </Card>
   );
+};
+
+const getPriorityColor = (priority: EmailMessage['priority']) => {
+  switch (priority) {
+    case 'HIGH':
+      return 'error.main';
+    case 'MEDIUM':
+      return 'warning.main';
+    default:
+      return 'success.main';
+  }
+};
+
+const getPriorityChipColor = (priority: EmailMessage['priority']): 'error' | 'warning' | 'success' => {
+  switch (priority) {
+    case 'HIGH':
+      return 'error';
+    case 'MEDIUM':
+      return 'warning';
+    default:
+      return 'success';
+  }
 }; 

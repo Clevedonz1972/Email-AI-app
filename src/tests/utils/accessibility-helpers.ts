@@ -1,11 +1,13 @@
 import { axe, toHaveNoViolations } from 'jest-axe';
-import { render } from './test-utils';
+import type { AxeResults, ElementContext, RunOptions } from 'axe-core';
+import { render } from '@testing-library/react';
 
 expect.extend(toHaveNoViolations);
 
 interface AccessibilityTestOptions {
-  timeout?: number;
   rules?: Record<string, { enabled: boolean }>;
+  context?: ElementContext;
+  runOptions?: Partial<RunOptions>;
 }
 
 export const testAccessibility = async (
@@ -13,13 +15,16 @@ export const testAccessibility = async (
   options: AccessibilityTestOptions = {}
 ) => {
   const { container } = render(ui);
+  const { rules, context, runOptions } = options;
+  
   const results = await axe(container, {
     rules: {
       'color-contrast': { enabled: true },
       'aria-hidden-focus': { enabled: true },
-      ...options.rules
+      ...rules
     },
-    timeout: options.timeout || 5000
+    context,
+    ...runOptions
   });
 
   expect(results).toHaveNoViolations();
@@ -34,4 +39,9 @@ export const checkColorContrast = (element: HTMLElement) => {
 export const checkFocusability = async (element: HTMLElement) => {
   element.focus();
   expect(document.activeElement).toBe(element);
+};
+
+export const checkAccessibility = async (container: Element) => {
+  const results = await axe(container);
+  expect(results).toHaveNoViolations();
 }; 

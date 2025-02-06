@@ -20,6 +20,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useAIAssistant } from '../../hooks/useAIAssistant';
+import type { EmailMessage } from '@/types/email';
 
 const ComposerWrapper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
