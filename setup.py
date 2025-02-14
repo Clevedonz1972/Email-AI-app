@@ -7,8 +7,8 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="email-api-client",
-    version="0.1.0",
+    name="email-ai",
+    version="0.1",
     author="Your Name",
     author_email="your.email@example.com",
     description="A modern Python client for managing email operations through a RESTful API",
@@ -28,5 +28,21 @@ setup(
         "Programming Language :: Python :: 3.11",
     ],
     python_requires=">=3.8",
-    install_requires=requirements,
+    install_requires=[
+        "fastapi",
+        "sqlalchemy",
+        "alembic",
+        "psycopg2-binary",
+        "python-dotenv",
+        "pydantic",
+        "pydantic-settings",
+        "tenacity",
+        "python-jose[cryptography]",
+        "passlib[bcrypt]",
+        "python-multipart",
+        "openai",
+        "pytest",
+        "pytest-asyncio",
+        "httpx"
+    ],
 ) 

@@ -10,7 +10,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import { TemplateList } from '../components/EmailTemplates/TemplateList';
 import { TemplateEditor } from '../components/EmailTemplates/TemplateEditor';
-import { EmailTemplate } from '../types/template';
+import type { EmailTemplate, UpdateTemplateDto, CreateTemplateDto, TemplateVariable } from '../types/template';
 import TemplateService from '../services/templateService';
 import { useSnackbar } from 'notistack';
 
@@ -64,16 +64,38 @@ export const TemplateManagement: React.FC = () => {
   const handleSaveTemplate = async (templateData: Partial<EmailTemplate>) => {
     try {
       if (selectedTemplate) {
+        const updateDto: UpdateTemplateDto = {
+          name: templateData.name,
+          subject_template: templateData.subject,
+          content_template: templateData.content,
+          variables: templateData.variables?.map(name => ({
+            name,
+            required: true,
+            defaultValue: ''
+          }))
+        };
+
         const updated = await TemplateService.updateTemplate(
           selectedTemplate.id,
-          templateData
+          updateDto
         );
         setTemplates(templates.map(t => 
           t.id === selectedTemplate.id ? updated : t
         ));
         enqueueSnackbar('Template updated successfully', { variant: 'success' });
       } else {
-        const created = await TemplateService.createTemplate(templateData);
+        const createDto: CreateTemplateDto = {
+          name: templateData.name!,
+          subject_template: templateData.subject!,
+          content_template: templateData.content!,
+          variables: templateData.variables?.map(name => ({
+            name,
+            required: true,
+            defaultValue: ''
+          })) || []
+        };
+
+        const created = await TemplateService.createTemplate(createDto);
         setTemplates([...templates, created]);
         enqueueSnackbar('Template created successfully', { variant: 'success' });
       }
@@ -117,8 +139,8 @@ export const TemplateManagement: React.FC = () => {
 
         <TemplateList
           templates={templates}
-          onEditTemplate={handleEditTemplate}
-          onDeleteTemplate={handleDeleteTemplate}
+          onEdit={handleEditTemplate}
+          onDelete={handleDeleteTemplate}
         />
 
         <TemplateEditor

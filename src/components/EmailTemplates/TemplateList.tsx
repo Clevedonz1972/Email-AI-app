@@ -16,7 +16,7 @@ import type { EmailTemplate } from '@/types/template';
 interface TemplateListProps {
   templates: EmailTemplate[];
   onEdit: (template: EmailTemplate) => void;
-  onDelete: (templateId: string) => Promise<void>;
+  onDelete: (templateId: number) => Promise<void>;
 }
 
 export const TemplateList: React.FC<TemplateListProps> = ({

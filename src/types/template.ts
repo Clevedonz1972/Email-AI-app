@@ -7,7 +7,7 @@ export interface TemplateVariable {
 }
 
 export interface EmailTemplate {
-  id: string;
+  id: number;
   name: string;
   subject: string;
   content: string;
@@ -26,7 +26,13 @@ export interface CreateTemplateDto {
   category_id?: number;
 }
 
-export interface UpdateTemplateDto extends Partial<CreateTemplateDto> {}
+export interface UpdateTemplateDto {
+  name?: string;
+  subject_template?: string;
+  content_template?: string;
+  variables?: TemplateVariable[];
+  category_id?: number;
+}
 
 export interface ProcessedTemplate {
   template: EmailTemplate;

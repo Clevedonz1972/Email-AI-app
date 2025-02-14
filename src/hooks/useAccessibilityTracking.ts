@@ -1,37 +1,21 @@
-import { useEffect, useCallback } from 'react';
-import { logger } from '../utils/logger';
+import { useCallback } from 'react';
+import { logger } from '@/utils/logger';
 
 interface AccessibilityEvent {
-  type: 'screenReader' | 'keyboard' | 'zoom' | 'highContrast';
+  type: string;
+  element: string;
   action: string;
-  element?: string;
   timestamp: number;
+  metadata?: Record<string, unknown>;
 }
 
 export const useAccessibilityTracking = () => {
   const trackAccessibilityEvent = useCallback((event: AccessibilityEvent) => {
-    logger.log('info', 'Accessibility Event', {
+    logger.info('Accessibility event tracked', {
       ...event,
-      userAgent: navigator.userAgent,
-      url: window.location.pathname
+      timestamp: Date.now()
     });
   }, []);
-
-  useEffect(() => {
-    const handleKeyboardNavigation = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
-        trackAccessibilityEvent({
-          type: 'keyboard',
-          action: 'navigation',
-          element: (document.activeElement as HTMLElement)?.tagName,
-          timestamp: Date.now()
-        });
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyboardNavigation);
-    return () => document.removeEventListener('keydown', handleKeyboardNavigation);
-  }, [trackAccessibilityEvent]);
 
   return { trackAccessibilityEvent };
 }; 

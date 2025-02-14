@@ -4,16 +4,17 @@ import { AIService } from '@/services/ai/aiService';
 import { logger } from '@/utils/logger';
 
 export interface EmailContextType {
-  emails: readonly EmailMessage[];
+  emails: EmailMessage[];
   loading: boolean;
   error: string | null;
   emailStats: EmailStats;
   processing: boolean;
   progress: number;
-  processEmails: (emails: readonly EmailMessage[]) => Promise<readonly EmailMessage[]>;
+  processEmails: (emails: EmailMessage[]) => Promise<EmailMessage[]>;
   fetchEmails: (params: { category: string; stressLevel: StressLevel }) => Promise<void>;
 }
 
+// Default stats to prevent undefined errors
 const defaultStats: EmailStats = {
   total: 0,
   unread: 0,
@@ -34,17 +35,19 @@ const defaultStats: EmailStats = {
 export const EmailContext = createContext<EmailContextType | undefined>(undefined);
 
 export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [emails, setEmails] = useState<readonly EmailMessage[]>([]);
+  const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [emailStats] = useState<EmailStats>(defaultStats);
 
+  // Fetch Emails
   const fetchEmails = useCallback(async (params: { category: string; stressLevel: StressLevel }) => {
     setLoading(true);
     try {
-      // Implement your fetch logic here
+      // TODO: Implement real email fetch logic
+      console.log(`Fetching emails with category=${params.category} and stressLevel=${params.stressLevel}`);
       setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch emails';
@@ -55,15 +58,16 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  const processEmails = useCallback(async (emailsToProcess: readonly EmailMessage[]): Promise<readonly EmailMessage[]> => {
+  // Process Emails with AI
+  const processEmails = useCallback(async (emailsToProcess: EmailMessage[]): Promise<EmailMessage[]> => {
     setProcessing(true);
     const processed: EmailMessage[] = [];
-    
+
     try {
       for (let i = 0; i < emailsToProcess.length; i++) {
         const email = emailsToProcess[i];
         const analysis = await AIService.summarizeEmail(email.content);
-        
+
         if (analysis.success && analysis.data) {
           processed.push({
             ...email,
@@ -74,7 +78,7 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
         }
 
-        setProgress((i + 1) / emailsToProcess.length * 100);
+        setProgress(Math.round(((i + 1) / emailsToProcess.length) * 100));
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Email processing failed';
@@ -88,20 +92,19 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return processed;
   }, []);
 
+  const contextValue: EmailContextType = {
+    emails,
+    loading,
+    error,
+    emailStats,
+    processing,
+    progress,
+    processEmails,
+    fetchEmails
+  };
+
   return (
-    <EmailContext.Provider 
-      value={{
-        emails,
-        loading,
-        error,
-        emailStats,
-        processing,
-        progress,
-        setEmails,
-        fetchEmails,
-        processEmails
-      }}
-    >
+    <EmailContext.Provider value={contextValue}>
       {children}
     </EmailContext.Provider>
   );

@@ -1,11 +1,13 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import openai
 from functools import lru_cache
 import os
 from tenacity import retry, stop_after_attempt, wait_exponential
 from fastapi import HTTPException
-from pydantic import BaseModel
-from models.email import Email, StressLevel, Priority
+from pydantic import BaseModel, ValidationError
+from backend.models.email import Email, StressLevel, Priority
+import json
+from backend.utils.logger import logger
 
 class EmailAnalysis(BaseModel):
     stress_level: StressLevel
@@ -14,173 +16,104 @@ class EmailAnalysis(BaseModel):
     action_items: List[str]
     sentiment_score: float
 
+class AIResponse(BaseModel):
+    stress_level: StressLevel
+    priority: Priority
+    summary: str
+    action_items: List[str]
+    sentiment_score: float
+
+    @classmethod
+    def parse_ai_response(cls, response: str) -> "AIResponse":
+        try:
+            data = json.loads(response)
+            return cls(**data)
+        except Exception as e:
+            logger.error(f"AI response parsing failed: {str(e)}")
+            return cls(
+                stress_level=StressLevel.MEDIUM,
+                priority=Priority.MEDIUM
+            )
+
+class ReplyResponse(BaseModel):
+    content: str
+    tone: str
+    formality_level: int
+
+SYSTEM_PROMPT = """You are an AI assistant that always responds with valid JSON.
+Your responses must be parseable JSON objects with no additional text or explanations.
+Use lowercase for all field values and ensure they match the expected formats."""
+
 class AIHandler:
-    def __init__(self):
-        self.api_key = os.getenv('OPENAI_API_KEY')
-        if not self.api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is required")
-        openai.api_key = self.api_key
+    def __init__(self, testing: bool = False):
+        self.testing = testing
+        if not testing:  # Only check for API key if not in testing mode
+            self.api_key = os.getenv('OPENAI_API_KEY')
+            if not self.api_key:
+                raise ValueError("OPENAI_API_KEY environment variable is required")
+            openai.api_key = self.api_key
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     @lru_cache(maxsize=100)
-    def summarize_email(self, content: str) -> Dict:
-        """
-        Summarizes email content with a focus on clarity and actionable items.
-        Uses a neurodiversity-friendly format with clear structure and bullet points.
-        """
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are an AI assistant helping neurodivergent users understand their emails.
-                        Format your response in a clear, structured way:
-                        - Main Point: [One sentence summary]
-                        - Key Details: [2-3 bullet points]
-                        - Action Needed?: [Yes/No, followed by clear action items if any]
-                        - Urgency: [High/Medium/Low with brief explanation]"""
-                    },
-                    {"role": "user", "content": f"Summarize this email clearly:\n\n{content}"}
-                ],
-                max_tokens=200,
-                temperature=0.5
-            )
-            return {
-                "success": True,
-                "summary": response.choices[0].message['content']
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+    def summarize_email(self, content: str) -> Dict[str, Union[str, List[str], float]]:
+        """Analyze email content and return structured summary."""
+        prompt = {
+            "role": "system",
+            "content": f"{SYSTEM_PROMPT} Return JSON with fields: summary, stress_level (low/medium/high), "
+                      "priority (low/medium/high), action_items (array), and sentiment_score (0-1)"
+        }
+        
+        user_message = {
+            "role": "user",
+            "content": f"Analyze this email and return JSON only:\n\n{content}"
+        }
+
+        response_text = self._create_chat_completion([prompt, user_message])
+        return self._parse_json_response(response_text, AIResponse)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def analyze_priority(self, content: str, user_preferences: Optional[Dict] = None) -> Dict:
-        """
-        Analyzes email priority considering user preferences and neurodivergent needs.
-        Includes explanation for transparency in decision-making.
-        """
-        try:
-            context = "Consider urgency, importance, and potential stress factors for neurodivergent users."
-            if user_preferences:
-                context += f"\nUser preferences: {user_preferences}"
+    def analyze_priority(self, content: str) -> Dict[str, str]:
+        """Analyze email priority and stress level."""
+        prompt = {
+            "role": "system",
+            "content": f"{SYSTEM_PROMPT} Return JSON with fields: priority (low/medium/high) "
+                      "and stress_level (low/medium/high)"
+        }
+        
+        user_message = {
+            "role": "user",
+            "content": f"Analyze the priority of this email and return JSON only:\n\n{content}"
+        }
 
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"""You analyze email priority with focus on neurodivergent users' needs. {context}
-                        Provide:
-                        1. Priority level (HIGH/MEDIUM/LOW)
-                        2. Brief explanation of why
-                        3. Any potential stress triggers to be aware of"""
-                    },
-                    {"role": "user", "content": f"Analyze this email's priority:\n\n{content}"}
-                ],
-                max_tokens=150,
-                temperature=0.3
-            )
-            
-            # Parse the response to extract priority and explanation
-            analysis = response.choices[0].message['content'].strip()
-            return {
-                "success": True,
-                "analysis": analysis
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+        response_text = self._create_chat_completion([prompt, user_message])
+        return self._parse_json_response(response_text, AIResponse)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def generate_reply(self, content: str, user_preferences: Optional[Dict] = None) -> Dict:
-        """
-        Generates clear, concise email replies with optional templates based on user preferences.
-        """
+    def generate_reply(self, content: str, tone: Optional[str] = "professional") -> Dict[str, Union[str, int]]:
+        """Generate email reply with specified tone."""
+        prompt = {
+            "role": "system",
+            "content": f"{SYSTEM_PROMPT} Return JSON with fields: content (the reply text), "
+                      "tone (formal/casual/friendly), and formality_level (1-5)"
+        }
+        
+        user_message = {
+            "role": "user",
+            "content": f"Generate a {tone} reply to this email and return as JSON:\n\n{content}"
+        }
+
+        response_text = self._create_chat_completion([prompt, user_message])
+        return self._parse_json_response(response_text, ReplyResponse)
+
+    async def analyze_email(self, content: str) -> EmailAnalysis:
         try:
-            style_guide = "Keep language clear and direct. Avoid idioms or ambiguous phrases."
-            if user_preferences:
-                style_guide += f"\nUser preferences: {user_preferences}"
-
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"""Generate a clear, direct email reply. {style_guide}
-                        Format:
-                        1. Greeting
-                        2. Main response (2-3 sentences max)
-                        3. Clear next steps (if any)
-                        4. Professional closing"""
-                    },
-                    {"role": "user", "content": f"Generate a reply to this email:\n\n{content}"}
-                ],
-                max_tokens=200,
-                temperature=0.7
-            )
-            return {
-                "success": True,
-                "reply": response.choices[0].message['content']
-            }
+            response = await self._call_openai(content)
+            return AIResponse.parse_ai_response(response)
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
-
-    async def analyze_email(self, content: str, subject: str) -> EmailAnalysis:
-        """Analyze email content for stress level, priority, and action items."""
-        try:
-            # Create a prompt that includes guidelines for neurodiversity-friendly analysis
-            prompt = f"""Analyze this email with focus on stress impact and clarity.
-Subject: {subject}
-Content: {content}
-
-Provide a structured analysis including:
-1. Stress level (low/medium/high)
-2. Priority level (low/medium/high)
-3. Brief summary (clear and concise)
-4. Action items (if any)
-5. Overall sentiment score (-1 to 1)
-
-Consider:
-- Urgent language
-- Emotional tone
-- Deadline pressure
-- Clarity of requests
-- Social demands
-"""
-
-            response = await openai.ChatCompletion.acreate(
-                model="gpt-4",
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant specialized in analyzing emails with consideration for neurodiversity."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=500
-            )
-
-            # Parse the response
-            analysis = self._parse_analysis(response.choices[0].message.content)
-            
-            return EmailAnalysis(
-                stress_level=analysis["stress_level"],
-                priority=analysis["priority"],
-                summary=analysis["summary"],
-                action_items=analysis["action_items"],
-                sentiment_score=analysis["sentiment_score"]
-            )
-
-        except Exception as e:
+            logger.error(f"Email analysis failed: {str(e)}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Error analyzing email: {str(e)}"
+                detail="Analysis failed"
             )
 
     async def generate_response_suggestion(
@@ -295,4 +228,56 @@ Guidelines:
             return analysis
 
         except Exception as e:
-            raise ValueError(f"Error parsing AI response: {str(e)}") 
+            raise ValueError(f"Error parsing AI response: {str(e)}")
+
+    def _create_chat_completion(self, messages: List[Dict[str, str]], max_retries: int = 2) -> str:
+        """Helper function to handle OpenAI API calls with retries."""
+        for attempt in range(max_retries + 1):
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-4",
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=500
+                )
+                return response.choices[0].message.content
+            except openai.error.OpenAIError as e:
+                if attempt == max_retries:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Failed to get AI response after {max_retries} attempts"
+                    )
+                continue
+
+    def _parse_json_response(self, json_str: str, model: BaseModel) -> Dict:
+        """Parse and validate JSON response against a Pydantic model."""
+        try:
+            data = json.loads(json_str)
+            validated_data = model.parse_obj(data)
+            return validated_data.dict()
+        except json.JSONDecodeError:
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid JSON response from AI service"
+            )
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"AI response missing required fields: {str(e)}"
+            )
+
+    async def _call_openai(self, content: str) -> str:
+        """We need to implement this method to handle the actual OpenAI calls"""
+        try:
+            response = await openai.ChatCompletion.acreate(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"Analyze this email:\n\n{content}"}
+                ],
+                temperature=0.3
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI API call failed: {str(e)}")
+            raise 

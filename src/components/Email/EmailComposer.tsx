@@ -20,7 +20,7 @@ import PauseIcon from '@mui/icons-material/Pause';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useAIAssistant } from '../../hooks/useAIAssistant';
-import type { EmailMessage } from '@/types/email';
+import type { EmailMessage, EmailSender } from '@/types/email';
 
 const ComposerWrapper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -52,19 +52,23 @@ const StressIndicator = styled(Box)<{ stress: number }>(({ theme, stress }) => (
 
 interface EmailComposerProps {
   recipient?: string;
-  subject?: string;
-  onSend: (email: { to: string; subject: string; content: string }) => Promise<void>;
+  initialValues: {
+    subject: string;
+    content: string;
+    sender: EmailSender;
+  };
+  onSend: () => Promise<void>;
 }
 
 export const EmailComposer: React.FC<EmailComposerProps> = ({
   recipient = '',
-  subject = '',
-  onSend,
+  initialValues,
+  onSend
 }) => {
   const theme = useTheme();
   const [to, setTo] = useState(recipient);
-  const [emailSubject, setEmailSubject] = useState(subject);
-  const [content, setContent] = useState('');
+  const [emailSubject, setEmailSubject] = useState(initialValues.subject);
+  const [content, setContent] = useState(initialValues.content);
   const [isLoading, setIsLoading] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [stressLevel, setStressLevel] = useState(0);
@@ -103,7 +107,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   const handleSend = async () => {
     try {
       setIsLoading(true);
-      await onSend({ to, subject: emailSubject, content });
+      await onSend();
       // Clear form after successful send
       setTo('');
       setEmailSubject('');

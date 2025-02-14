@@ -13,7 +13,7 @@ import {
   FormControlLabel
 } from '@mui/material';
 import { Warning, Error, Info, ExpandMore, VolumeUp } from '@mui/icons-material';
-import { useEmailProcessing } from '../../hooks/useEmailProcessing';
+import { useEmailContext } from '../../contexts/EmailContext';
 import { useSensoryPreferences } from '../../hooks/useSensoryPreferences';
 import { useAccessibilityTracking } from '../../hooks/useAccessibilityTracking';
 
@@ -26,7 +26,7 @@ interface PriorityStats {
 
 export const PriorityView: React.FC = () => {
   const { preferences } = useSensoryPreferences();
-  const { emailStats } = useEmailProcessing();
+  const { emailStats } = useEmailContext();
   const { trackAccessibilityEvent } = useAccessibilityTracking();
   const [expanded, setExpanded] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(false);
@@ -53,9 +53,9 @@ export const PriorityView: React.FC = () => {
     <Paper 
       sx={{ 
         p: 3,
-        backgroundColor: preferences.highContrast ? '#000' : '#fff',
-        color: preferences.highContrast ? '#fff' : '#000',
-        transition: preferences.reducedMotion ? 'none' : 'all 0.3s ease'
+        backgroundColor: preferences.contrast === 'high' ? '#000' : '#fff',
+        color: preferences.contrast === 'high' ? '#fff' : '#000',
+        transition: preferences.motion === 'reduced' ? 'none' : 'all 0.3s ease'
       }}
     >
       <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -81,7 +81,7 @@ export const PriorityView: React.FC = () => {
             <ExpandMore
               sx={{
                 transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: preferences.reducedMotion ? 'none' : 'transform 0.3s'
+                transition: preferences.motion === 'reduced' ? 'none' : 'transform 0.3s'
               }}
             />
           </IconButton>
@@ -120,7 +120,7 @@ export const PriorityView: React.FC = () => {
                     sx={{ 
                       m: 0.5,
                       fontSize: `${preferences.fontScale}rem`,
-                      transition: preferences.reducedMotion ? 'none' : 'all 0.3s'
+                      transition: preferences.motion === 'reduced' ? 'none' : 'all 0.3s'
                     }}
                     onClick={() => speakPriority(email.subject)}
                     onKeyPress={(e) => {
@@ -158,7 +158,7 @@ export const PriorityView: React.FC = () => {
               {emailStats.actionRequired.map(action => (
                 <Chip
                   key={action.id}
-                  label={action.description}
+                  label={action.subject}
                   color="primary"
                   sx={{ m: 0.5 }}
                   onClick={() => {/* Handle click */}}

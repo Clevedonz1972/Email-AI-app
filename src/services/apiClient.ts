@@ -5,7 +5,7 @@ interface ApiOptions extends RequestInit {
 }
 
 class ApiClient {
-  private static readonly BASE_URL = process.env.REACT_APP_API_URL;
+  private static readonly BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
   static async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     const { requiresAuth = true, ...fetchOptions } = options;
@@ -39,19 +39,44 @@ class ApiClient {
     return response.json();
   }
 
-  static async get<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-    return this.request<T>(endpoint, { ...options, method: 'GET' });
+  static async get<T>(endpoint: string): Promise<T> {
+    const response = await fetch(`${this.BASE_URL}${endpoint}`);
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
   }
 
-  static async post<T>(endpoint: string, data: any, options: ApiOptions = {}): Promise<T> {
-    return this.request<T>(endpoint, {
-      ...options,
+  static async post<T>(endpoint: string, data?: unknown): Promise<T> {
+    const response = await fetch(`${this.BASE_URL}${endpoint}`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(data),
     });
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
+  }
+
+  static async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    const response = await fetch(`${this.BASE_URL}${endpoint}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Network response was not ok');
+    return response.json();
+  }
+
+  static async delete(endpoint: string): Promise<void> {
+    const response = await fetch(`${this.BASE_URL}${endpoint}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Network response was not ok');
   }
 
   // Add other methods (PUT, DELETE, etc.) as needed
 }
 
-export default ApiClient; 
+export { ApiClient }; 

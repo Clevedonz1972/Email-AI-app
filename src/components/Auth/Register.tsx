@@ -1,109 +1,137 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Box, 
-  TextField, 
-  Button, 
-  Typography, 
-  Container,
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Paper,
+  Link,
   Alert,
-  Link 
+  CircularProgress
 } from '@mui/material';
-import { useAuth } from '../../contexts/AuthContext';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/utils/logger';
 
 export const Register: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError(null);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
 
+    setLoading(true);
+
     try {
-      await register({ email, password, confirmPassword });
+      await register({ email, password });
       navigate('/dashboard');
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      const message = err instanceof Error ? err.message : 'Registration failed';
+      setError(message);
+      logger.error('Registration failed', { email });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3
+      }}
+    >
+      <Paper
+        elevation={3}
         sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          p: 4,
+          maxWidth: 400,
+          width: '100%'
         }}
       >
-        <Typography component="h1" variant="h5">
-          Sign up
+        <Typography variant="h5" component="h1" gutterBottom align="center">
+          Create Account
         </Typography>
-        
+
         {error && (
-          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+        <form onSubmit={handleSubmit}>
           <TextField
-            margin="normal"
-            required
             fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
+            label="Email"
+            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
             margin="normal"
             required
+            autoComplete="email"
+            autoFocus
+          />
+
+          <TextField
             fullWidth
-            name="password"
             label="Password"
             type="password"
-            id="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-          />
-          <TextField
             margin="normal"
             required
+            autoComplete="new-password"
+          />
+
+          <TextField
             fullWidth
-            name="confirmPassword"
             label="Confirm Password"
             type="password"
-            id="confirmPassword"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
+            margin="normal"
+            required
+            autoComplete="new-password"
           />
+
           <Button
             type="submit"
             fullWidth
             variant="contained"
+            color="primary"
+            size="large"
+            disabled={loading}
             sx={{ mt: 3, mb: 2 }}
           >
-            Sign Up
+            {loading ? <CircularProgress size={24} /> : 'Sign Up'}
           </Button>
-          <Link href="/login" variant="body2">
-            {"Already have an account? Sign In"}
-          </Link>
-        </Box>
-      </Box>
-    </Container>
+
+          <Box textAlign="center">
+            <Link
+              component={RouterLink}
+              to="/login"
+              variant="body2"
+              underline="hover"
+            >
+              Already have an account? Sign In
+            </Link>
+          </Box>
+        </form>
+      </Paper>
+    </Box>
   );
 }; 

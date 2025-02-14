@@ -1,93 +1,119 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Box, 
-  TextField, 
-  Button, 
-  Typography, 
-  Container,
+import {
+  Box,
+  TextField,
+  Button,
+  Typography,
+  Paper,
+  Link,
   Alert,
-  Link 
+  CircularProgress
 } from '@mui/material';
-import { useAuth } from '../../contexts/AuthContext';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { logger } from '@/utils/logger';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    
+    setError(null);
+    setLoading(true);
+
     try {
       await login({ email, password });
       navigate('/dashboard');
     } catch (err) {
-      setError('Invalid email or password');
+      const message = err instanceof Error ? err.message : 'Failed to login';
+      setError(message);
+      logger.error('Login failed', { email });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Container component="main" maxWidth="xs">
-      <Box
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        p: 3
+      }}
+    >
+      <Paper
+        elevation={3}
         sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
+          p: 4,
+          maxWidth: 400,
+          width: '100%'
         }}
       >
-        <Typography component="h1" variant="h5">
-          Sign in
+        <Typography variant="h5" component="h1" gutterBottom align="center">
+          Sign In
         </Typography>
-        
+
         {error && (
-          <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
+        <form onSubmit={handleSubmit}>
           <TextField
-            margin="normal"
-            required
             fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
+            label="Email"
+            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-          />
-          <TextField
             margin="normal"
             required
+            autoComplete="email"
+            autoFocus
+          />
+
+          <TextField
             fullWidth
-            name="password"
             label="Password"
             type="password"
-            id="password"
-            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            margin="normal"
+            required
+            autoComplete="current-password"
           />
+
           <Button
             type="submit"
             fullWidth
             variant="contained"
+            color="primary"
+            size="large"
+            disabled={loading}
             sx={{ mt: 3, mb: 2 }}
           >
-            Sign In
+            {loading ? <CircularProgress size={24} /> : 'Sign In'}
           </Button>
-          <Link href="/register" variant="body2">
-            {"Don't have an account? Sign Up"}
-          </Link>
-        </Box>
-      </Box>
-    </Container>
+
+          <Box textAlign="center">
+            <Link
+              component={RouterLink}
+              to="/register"
+              variant="body2"
+              underline="hover"
+            >
+              Don't have an account? Sign Up
+            </Link>
+          </Box>
+        </form>
+      </Paper>
+    </Box>
   );
 }; 

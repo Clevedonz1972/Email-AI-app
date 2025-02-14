@@ -1,44 +1,47 @@
-from pydantic import BaseModel, EmailStr, constr
-from typing import List, Optional
+from pydantic import BaseModel
+from typing import List, Optional, Dict
 from datetime import datetime
-from models.email import StressLevel, Priority
+from ..models.email import StressLevel, Priority
 
 class EmailBase(BaseModel):
-    subject: constr(min_length=1, max_length=255)
+    subject: str
     content: str
-    sender: EmailStr
-    recipient: EmailStr
-    category_id: Optional[int] = None
+    sender: Dict[str, str]
+    recipient: Optional[Dict[str, str]]
+    category: str = "inbox"
 
 class EmailCreate(EmailBase):
     pass
 
 class EmailUpdate(BaseModel):
-    subject: Optional[str] = None
-    content: Optional[str] = None
-    category_id: Optional[int] = None
-    is_read: Optional[bool] = None
-    is_archived: Optional[bool] = None
-
-class EmailResponse(EmailBase):
-    id: int
-    user_id: int
-    stress_level: Optional[StressLevel]
+    is_read: Optional[bool]
+    category: Optional[str]
     priority: Optional[Priority]
-    ai_summary: Optional[str]
-    action_items: Optional[List[str]]
-    sentiment_score: Optional[float]
-    is_read: bool
-    is_archived: bool
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        orm_mode = True
+    stress_level: Optional[StressLevel]
 
 class EmailAnalysisResponse(BaseModel):
     stress_level: StressLevel
     priority: Priority
     summary: str
     action_items: List[str]
-    sentiment_score: float 
+    sentiment_score: float
+
+class EmailReplyResponse(BaseModel):
+    content: str
+    tone: str
+    formality_level: int
+
+class EmailResponse(EmailBase):
+    id: int
+    user_id: int
+    timestamp: datetime
+    is_read: bool
+    is_processed: bool
+    stress_level: Optional[StressLevel]
+    priority: Optional[Priority]
+    summary: Optional[str]
+    action_items: Optional[List[str]]
+    sentiment_score: Optional[float]
+
+    class Config:
+        orm_mode = True 

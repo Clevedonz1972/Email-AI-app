@@ -1,7 +1,7 @@
-import ApiClient from './apiClient';
-import { EmailTemplate, CreateTemplateDto, UpdateTemplateDto } from '../types/template';
+import { ApiClient } from './apiClient';
+import type { EmailTemplate, CreateTemplateDto, UpdateTemplateDto } from '../types/template';
 
-class TemplateService {
+export class TemplateService {
   static async getTemplates(): Promise<EmailTemplate[]> {
     return ApiClient.get<EmailTemplate[]>('/templates');
   }

@@ -6,7 +6,7 @@ import { StressLevelIndicator } from './StressLevelIndicator';
 import { CategoryManager } from './CategoryManager';
 import { AnalyticsSummary } from './AnalyticsSummary';
 import { useEmailContext } from '@/contexts/EmailContext';
-import { AccessibilitySettings } from '../Settings/AccessibilitySettings';
+import { SensorySettings } from '../Settings/SensorySettings';
 import type { EmailMessage, StressLevel } from '@/types/email';
 
 const DashboardContainer = styled(Box)(({ theme }) => ({
@@ -33,40 +33,15 @@ const Section = styled(Paper)(({ theme }) => ({
   },
 }));
 
-interface EmailDashboardProps {
-  // Add props here
-}
-
-// Add interface for accessibility settings
-interface AccessibilitySettingsState {
-  textScale: number;
-  highContrast: boolean;
-  reducedMotion: boolean;
-}
-
-export const EmailDashboard: React.FC<EmailDashboardProps> = () => {
+export const EmailDashboard: React.FC = () => {
   const theme = useTheme();
   const { emails, loading, error, fetchEmails } = useEmailContext();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentStressLevel, setCurrentStressLevel] = useState<StressLevel>('HIGH');
-  // Add state for accessibility settings
-  const [accessibilitySettings, setAccessibilitySettings] = useState<AccessibilitySettingsState>({
-    textScale: 100,
-    highContrast: false,
-    reducedMotion: false
-  });
 
   useEffect(() => {
     fetchEmails({ category: selectedCategory, stressLevel: currentStressLevel });
   }, [selectedCategory, currentStressLevel, fetchEmails]);
-
-  // Add handler for settings changes
-  const handleSettingChange = (setting: keyof AccessibilitySettingsState, value: number | boolean) => {
-    setAccessibilitySettings(prev => ({
-      ...prev,
-      [setting]: value
-    }));
-  };
 
   const filteredEmails = emails.filter(email => 
     currentStressLevel === 'all' || email.stress_level === currentStressLevel
@@ -89,10 +64,7 @@ export const EmailDashboard: React.FC<EmailDashboardProps> = () => {
     <Box sx={{ flexGrow: 1, p: 3 }}>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <AccessibilitySettings 
-            settings={accessibilitySettings}
-            onSettingChange={handleSettingChange}
-          />
+          <SensorySettings />
         </Grid>
         <Grid item xs={12}>
           <Paper sx={{ p: 2 }}>

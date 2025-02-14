@@ -1,8 +1,11 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+from jose import jwt
+from backend.config import settings
 
 class User(BaseModel):
     __tablename__ = 'users'
@@ -19,8 +22,9 @@ class User(BaseModel):
     # Relationships
     emails = relationship("Email", back_populates="user")
     categories = relationship("Category", back_populates="user")
-    templates = relationship("EmailTemplate", back_populates="user")
-    analytics = relationship("UserAnalytics", back_populates="user")
+    user_analytics = relationship("UserAnalytics", back_populates="user")
+    email_analytics = relationship("EmailAnalytics", back_populates="user")
+    # Remove templates relationship for now
 
     def set_password(self, password: str):
         self.hashed_password = generate_password_hash(password)
@@ -47,4 +51,13 @@ class User(BaseModel):
                 "auto_categorize": True,
                 "stress_monitoring": True
             }
-        } 
+        }
+
+    def create_access_token(self) -> str:
+        """Create a new access token for this user."""
+        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        data = {
+            "sub": str(self.id),
+            "exp": expire
+        }
+        return jwt.encode(data, settings.JWT_SECRET_KEY, algorithm=settings.ALGORITHM) 

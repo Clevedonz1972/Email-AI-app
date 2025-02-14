@@ -1,29 +1,17 @@
 import { useState, useCallback } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { logger } from '@/utils/logger';
-
-export interface SensoryPreferences {
-  fontSize: number;
-  lineHeight: number;
-  contrast: 'normal' | 'high';
-  motionReduced: boolean;
-  soundEnabled: boolean;
-  textToSpeech: boolean;
-  readingSpeed: 'slow' | 'normal' | 'fast';
-  colorMode: 'light' | 'dark' | 'system';
-  fontFamily: string;
-}
+import type { SensoryPreferences } from '@/types/preferences';
 
 const defaultPreferences: SensoryPreferences = {
-  fontSize: 16,
-  lineHeight: 1.5,
+  fontScale: 1,
   contrast: 'normal',
-  motionReduced: false,
-  soundEnabled: true,
-  textToSpeech: false,
-  readingSpeed: 'normal',
-  colorMode: 'system',
-  fontFamily: 'system-ui'
+  motion: 'normal',
+  textSpacing: 'normal',
+  colorMode: 'default',
+  lineHeight: 1.5,
+  fontFamily: 'system-ui',
+  readingSpeed: 'normal'
 };
 
 export const useSensoryPreferences = () => {

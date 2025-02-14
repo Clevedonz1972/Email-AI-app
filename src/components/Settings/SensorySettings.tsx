@@ -8,11 +8,13 @@ import {
   FormControlLabel,
   Select,
   MenuItem,
-  Paper
+  Paper,
+  SelectChangeEvent
 } from '@mui/material';
 import { useSensoryPreferences } from '../../hooks/useSensoryPreferences';
+import type { SensoryPreferences } from '@/types/preferences';
 
-export const SensorySettings: React.FC = () => {
+export const SensorySettings: React.FC = (): JSX.Element => {
   const { preferences, updatePreference } = useSensoryPreferences();
 
   return (
@@ -25,8 +27,10 @@ export const SensorySettings: React.FC = () => {
         <FormControlLabel
           control={
             <Switch
-              checked={preferences.reducedMotion}
-              onChange={(e) => updatePreference('reducedMotion', e.target.checked)}
+              checked={preferences.motion === 'reduced'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                updatePreference('motion', e.target.checked ? 'reduced' : 'normal')
+              }
             />
           }
           label="Reduce Motion"
@@ -37,8 +41,10 @@ export const SensorySettings: React.FC = () => {
         <FormControlLabel
           control={
             <Switch
-              checked={preferences.highContrast}
-              onChange={(e) => updatePreference('highContrast', e.target.checked)}
+              checked={preferences.contrast === 'high'}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => 
+                updatePreference('contrast', e.target.checked ? 'high' : 'normal')
+              }
             />
           }
           label="High Contrast"
@@ -51,7 +57,11 @@ export const SensorySettings: React.FC = () => {
         </Typography>
         <Slider
           value={preferences.fontScale}
-          onChange={(_, value) => updatePreference('fontScale', value as number)}
+          onChange={(_event: Event, value: number | number[], activeThumb: number) => {
+            if (typeof value === 'number') {
+              updatePreference('fontScale', value);
+            }
+          }}
           min={1}
           max={2}
           step={0.1}
@@ -64,9 +74,11 @@ export const SensorySettings: React.FC = () => {
         <Typography id="text-spacing-label" gutterBottom>
           Text Spacing
         </Typography>
-        <Select
+        <Select<SensoryPreferences['textSpacing']>
           value={preferences.textSpacing}
-          onChange={(e) => updatePreference('textSpacing', e.target.value as any)}
+          onChange={(e: SelectChangeEvent<'normal' | 'increased' | 'maximum'>) => 
+            updatePreference('textSpacing', e.target.value as SensoryPreferences['textSpacing'])
+          }
           aria-labelledby="text-spacing-label"
         >
           <MenuItem value="normal">Normal</MenuItem>
@@ -79,9 +91,11 @@ export const SensorySettings: React.FC = () => {
         <Typography id="color-mode-label" gutterBottom>
           Color Mode
         </Typography>
-        <Select
+        <Select<SensoryPreferences['colorMode']>
           value={preferences.colorMode}
-          onChange={(e) => updatePreference('colorMode', e.target.value as any)}
+          onChange={(e: SelectChangeEvent<'default' | 'deuteranopia' | 'protanopia' | 'tritanopia'>) => 
+            updatePreference('colorMode', e.target.value as SensoryPreferences['colorMode'])
+          }
           aria-labelledby="color-mode-label"
         >
           <MenuItem value="default">Default</MenuItem>

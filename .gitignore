@@ -51,4 +51,5 @@ htmlcov/
 # Build
 *.egg-info/
 dist/
-build/ 
+build/ postgres-data/
+*.env*

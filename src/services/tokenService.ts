@@ -6,20 +6,38 @@ interface DecodedToken {
   type: string;
 }
 
+interface TokenData {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
 class TokenService {
-  private static readonly ACCESS_TOKEN_KEY = 'email_ai_access_token';
+  private static readonly ACCESS_TOKEN_KEY = 'access_token';
+  private static readonly REFRESH_TOKEN_KEY = 'refresh_token';
+  private static readonly EXPIRES_AT_KEY = 'expires_at';
   
-  static setAccessToken(token: string): void {
-    // Store in memory only
-    sessionStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+  static setTokens(tokenData: TokenData): void {
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, tokenData.accessToken);
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, tokenData.refreshToken);
+    localStorage.setItem(
+      this.EXPIRES_AT_KEY, 
+      (Date.now() + tokenData.expiresIn * 1000).toString()
+    );
   }
 
   static getAccessToken(): string | null {
-    return sessionStorage.getItem(this.ACCESS_TOKEN_KEY);
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
   }
 
-  static removeTokens(): void {
-    sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+  static getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  static clearTokens(): void {
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.EXPIRES_AT_KEY);
   }
 
   static isTokenValid(token: string): boolean {
@@ -31,26 +49,34 @@ class TokenService {
     }
   }
 
-  static async refreshTokenIfNeeded(): Promise<boolean> {
-    const token = this.getAccessToken();
-    if (!token || !this.isTokenValid(token)) {
+  static async refreshTokenIfNeeded(): Promise<void> {
+    const expiresAt = localStorage.getItem(this.EXPIRES_AT_KEY);
+    if (!expiresAt) return;
+
+    const shouldRefresh = Date.now() > parseInt(expiresAt) - 5 * 60 * 1000; // 5 minutes before expiry
+    if (shouldRefresh) {
+      const refreshToken = this.getRefreshToken();
+      if (!refreshToken) {
+        this.clearTokens();
+        return;
+      }
+
       try {
         const response = await fetch('/api/auth/refresh', {
           method: 'POST',
-          credentials: 'include', // Important for cookies
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken })
         });
-        
-        if (response.ok) {
-          const data = await response.json();
-          this.setAccessToken(data.access_token);
-          return true;
-        }
-        return false;
-      } catch {
-        return false;
+
+        if (!response.ok) throw new Error('Failed to refresh token');
+
+        const newTokenData: TokenData = await response.json();
+        this.setTokens(newTokenData);
+      } catch (error) {
+        this.clearTokens();
+        throw error;
       }
     }
-    return true;
   }
 }
 

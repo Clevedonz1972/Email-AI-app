@@ -5,7 +5,7 @@ from typing import List, Optional, Dict
 import uvicorn
 from datetime import datetime
 from .client import MOCK_EMAILS
-from ..ai.handlers import AIHandler
+from backend.ai.handlers import AIHandler
 from backend.auth import router as auth_router
 
 app = FastAPI(

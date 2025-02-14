@@ -73,7 +73,7 @@ export const handleError = (error: Error | AppError, context?: ErrorContext) => 
 
   if (process.env.NODE_ENV === 'production') {
     Sentry.withScope((scope: Scope) => {
-      const sentrySeverity = severity.toLowerCase() as Severity;
+      const sentrySeverity = (severity.toLowerCase() as unknown) as Severity;
       scope.setLevel(sentrySeverity);
       
       if (context) {

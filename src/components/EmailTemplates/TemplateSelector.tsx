@@ -51,7 +51,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   };
 
   const handleChange = (event: SelectChangeEvent<string>) => {
-    const template = templates.find(t => t.id === event.target.value);
+    const template = templates.find(t => t.id === Number(event.target.value));
     if (template) {
       handleTemplateSelect(template);
     }
@@ -106,12 +106,12 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
               <Select
                 labelId="template-select-label"
                 id="template-select"
-                value={selectedTemplate?.id || ''}
+                value={selectedTemplate?.id ? String(selectedTemplate.id) : ''}
                 onChange={handleChange}
                 label="Select Template"
               >
                 {templates.map((template) => (
-                  <MenuItem key={template.id} value={template.id}>
+                  <MenuItem key={template.id} value={String(template.id)}>
                     {template.name}
                   </MenuItem>
                 ))}

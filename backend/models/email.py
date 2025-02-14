@@ -1,41 +1,42 @@
-from sqlalchemy import Column, String, Text, ForeignKey, Enum, Float, JSON, Integer, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, JSON, Enum
 from sqlalchemy.orm import relationship
+from datetime import datetime
 import enum
 from .base import BaseModel
+from sqlalchemy.sql import func
 
-class StressLevel(enum.Enum):
+class StressLevel(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
 
-class Priority(enum.Enum):
+class Priority(str, enum.Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
 
 class Email(BaseModel):
-    __tablename__ = 'emails'
+    __tablename__ = "emails"
 
-    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    subject = Column(String(255), nullable=False)
-    sender = Column(String(255), nullable=False)
-    recipient = Column(String(255), nullable=False)
-    content = Column(Text)
-    category_id = Column(Integer, ForeignKey('categories.id'))
-    
-    # AI-analyzed fields
-    stress_level = Column(Enum(StressLevel))
-    priority = Column(Enum(Priority))
-    ai_summary = Column(Text)
-    action_items = Column(JSON)  # List of action items
-    sentiment_score = Column(Float)
-    
-    # Status fields
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    category_id = Column(Integer, ForeignKey("categories.id"))
+    subject = Column(String, nullable=False)
+    content = Column(String, nullable=False)
+    sender = Column(JSON, nullable=False)
+    recipient = Column(JSON)
+    timestamp = Column(DateTime, default=func.now())
+    category = Column(String, default="inbox")
     is_read = Column(Boolean, default=False)
+    is_processed = Column(Boolean, default=False)
     is_archived = Column(Boolean, default=False)
     is_deleted = Column(Boolean, default=False)
-    
-    # Relationships
+    stress_level = Column(Enum(StressLevel))
+    priority = Column(Enum(Priority))
+    summary = Column(String)
+    action_items = Column(JSON)  # List of strings
+    sentiment_score = Column(Float)
+
     user = relationship("User", back_populates="emails")
     category = relationship("Category", back_populates="emails")
     analytics = relationship("EmailAnalytics", back_populates="email") 

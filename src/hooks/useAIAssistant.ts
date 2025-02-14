@@ -1,66 +1,66 @@
 import { useState, useCallback } from 'react';
-import axios from 'axios';
+import { AIService } from '@/services/ai/aiService';
+import type { EmailSummary } from '@/types/email';
 
-interface AIResponse {
-  success: boolean;
-  content?: string;
-  error?: string;
+interface UseAIAssistantReturn {
+  generateSuggestion: (content: string) => Promise<string | null>;
+  simplifyContent: (content: string) => Promise<string | null>;
+  checkTone: (content: string) => Promise<number>;
+  isGenerating: boolean;
+  error: string | null;
 }
 
-export const useAIAssistant = () => {
+export const useAIAssistant = (): UseAIAssistantReturn => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-
-  const handleAIRequest = async (
-    endpoint: string,
-    content: string
-  ): Promise<string | null> => {
+  const generateSuggestion = useCallback(async (content: string): Promise<string | null> => {
     setIsGenerating(true);
     setError(null);
-
+    
     try {
-      const response = await axios.post<AIResponse>(`${API_BASE_URL}/api/ai/${endpoint}`, {
-        content,
-      });
-
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to generate response');
+      const response = await AIService.generateReply(content);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to generate suggestion');
       }
-
-      return response.data.content || null;
+      return response.data;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
-      setError(errorMessage);
+      const message = err instanceof Error ? err.message : 'Failed to generate suggestion';
+      setError(message);
       return null;
     } finally {
       setIsGenerating(false);
     }
-  };
-
-  const generateSuggestion = useCallback(async (content: string) => {
-    return handleAIRequest('suggest', content);
   }, []);
 
-  const simplifyContent = useCallback(async (content: string) => {
-    return handleAIRequest('simplify', content);
+  const simplifyContent = useCallback(async (content: string): Promise<string | null> => {
+    setIsGenerating(true);
+    setError(null);
+    
+    try {
+      const response = await AIService.simplifyContent(content);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to simplify content');
+      }
+      return response.data;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to simplify content';
+      setError(message);
+      return null;
+    } finally {
+      setIsGenerating(false);
+    }
   }, []);
 
   const checkTone = useCallback(async (content: string): Promise<number> => {
     try {
-      const response = await axios.post<{ success: boolean; stress_level: number }>(
-        `${API_BASE_URL}/api/ai/analyze-tone`,
-        { content }
-      );
-
-      if (!response.data.success) {
-        throw new Error('Failed to analyze tone');
+      const response = await AIService.analyzeTone(content);
+      if (!response.success || !response.data) {
+        throw new Error(response.error || 'Failed to analyze tone');
       }
-
-      return response.data.stress_level;
+      return response.data.stressLevel;
     } catch (err) {
-      console.error('Error analyzing tone:', err);
+      setError(err instanceof Error ? err.message : 'Failed to analyze tone');
       return 0;
     }
   }, []);
@@ -70,6 +70,6 @@ export const useAIAssistant = () => {
     simplifyContent,
     checkTone,
     isGenerating,
-    error,
+    error
   };
 }; 

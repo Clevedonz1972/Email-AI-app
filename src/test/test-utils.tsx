@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import { AuthProvider } from '../contexts/AuthContext';
 import { SettingsProvider } from '../contexts/SettingsContext';
-import { createAppTheme } from '../theme/theme';
+import { createAppTheme } from '../theme';
 
 const AllTheProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (

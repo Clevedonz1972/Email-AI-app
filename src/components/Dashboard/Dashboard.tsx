@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { EmailList } from '../EmailList/EmailList';
 import { useEmailContext } from '@/contexts/EmailContext';
+import { SensorySettings } from '../Settings/SensorySettings';
 import type { EmailMessage } from '@/types/email';
 import { ErrorBoundary } from '../ErrorBoundary/ErrorBoundary';
 
@@ -31,6 +32,9 @@ export const Dashboard: React.FC = () => {
                 Welcome, {user?.email}!
               </Typography>
             </Paper>
+          </Grid>
+          <Grid item xs={12}>
+            <SensorySettings />
           </Grid>
           <Grid item xs={12}>
             <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>

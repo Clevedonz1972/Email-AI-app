@@ -8,7 +8,7 @@ interface Props {
 
 interface State {
   hasError: boolean;
-  errorMessage: string | undefined;
+  errorMessage: string | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -16,28 +16,34 @@ export class ErrorBoundary extends Component<Props, State> {
     super(props);
     this.state = {
       hasError: false,
-      errorMessage: undefined
+      errorMessage: null
     };
   }
 
   static getDerivedStateFromError(error: Error): State {
     return {
       hasError: true,
-      errorMessage: error.message || 'An unexpected error occurred'
+      errorMessage: error?.message || 'An unexpected error occurred'
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const errorMessage = error?.message || 'An unexpected error occurred';
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    const errorMessage = error?.message ?? 'An unexpected error occurred';
     this.setState({
       hasError: true,
-      errorMessage: errorMessage
+      errorMessage
     });
-    logError(error, { componentStack: errorInfo.componentStack });
+    
+    // Handle potential null componentStack
+    const componentStack = errorInfo.componentStack ?? undefined;
+    logError(error, { componentStack });
   }
 
   handleReset = () => {
-    this.setState({ hasError: false, errorMessage: undefined });
+    this.setState({ 
+      hasError: false, 
+      errorMessage: null 
+    });
   };
 
   render() {

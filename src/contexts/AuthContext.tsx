@@ -1,4 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import TokenService from '@/services/tokenService';
+import { ApiClient } from '@/services/apiClient';
+import { logger } from '@/utils/logger';
 import { User, LoginCredentials, RegisterCredentials, AuthResponse } from '../types/auth';
 
 interface AuthContextType {
@@ -7,88 +10,81 @@ interface AuthContextType {
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
-  loading: boolean;
 }
 
-export const AuthContext = createContext<AuthContextType | null>(null);
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterCredentials {
+  email: string;
+  password: string;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check for existing token and validate it
-    const checkAuth = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const response = await fetch('/api/auth/verify', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (response.ok) {
-            const userData = await response.json();
-            setUser(userData);
-          } else {
-            localStorage.removeItem('token');
-          }
-        } catch (error) {
-          console.error('Auth verification failed:', error);
-          localStorage.removeItem('token');
-        }
-      }
-      setLoading(false);
-    };
-    checkAuth();
-  }, []);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const login = useCallback(async (credentials: LoginCredentials) => {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
-    });
-
-    if (!response.ok) {
-      throw new Error('Login failed');
+    try {
+      const response = await ApiClient.post<{ token: string; user: User }>('/auth/login', credentials);
+      TokenService.setTokens({
+        accessToken: response.token,
+        refreshToken: response.token, // In a real app, you'd get a separate refresh token
+        expiresIn: 3600 // 1 hour
+      });
+      setUser(response.user);
+      setIsAuthenticated(true);
+      logger.info('User logged in successfully', { email: credentials.email });
+    } catch (error) {
+      logger.error('Login failed', { email: credentials.email });
+      throw error;
     }
-
-    const data: AuthResponse = await response.json();
-    localStorage.setItem('token', data.token);
-    setUser(data.user);
   }, []);
 
   const register = useCallback(async (credentials: RegisterCredentials) => {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
-    });
-
-    if (!response.ok) {
-      throw new Error('Registration failed');
+    try {
+      const response = await ApiClient.post<{ token: string; user: User }>('/auth/register', credentials);
+      TokenService.setTokens({
+        accessToken: response.token,
+        refreshToken: response.token,
+        expiresIn: 3600
+      });
+      setUser(response.user);
+      setIsAuthenticated(true);
+      logger.info('User registered successfully', { email: credentials.email });
+    } catch (error) {
+      logger.error('Registration failed', { email: credentials.email });
+      throw error;
     }
-
-    const data: AuthResponse = await response.json();
-    localStorage.setItem('token', data.token);
-    setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('token');
+    TokenService.clearTokens();
     setUser(null);
+    setIsAuthenticated(false);
+    logger.info('User logged out');
   }, []);
 
+  const value = {
+    isAuthenticated,
+    user,
+    login,
+    register,
+    logout
+  };
+
   return (
-    <AuthContext.Provider 
-      value={{ 
-        isAuthenticated: !!user, 
-        user, 
-        login, 
-        register, 
-        logout,
-        loading 
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
@@ -96,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;

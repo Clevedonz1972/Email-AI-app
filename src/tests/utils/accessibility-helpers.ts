@@ -1,13 +1,11 @@
 import { axe, toHaveNoViolations } from 'jest-axe';
-import type { AxeResults, ElementContext, RunOptions } from 'axe-core';
+import type { AxeResults } from 'axe-core';
 import { render } from '@testing-library/react';
 
 expect.extend(toHaveNoViolations);
 
 interface AccessibilityTestOptions {
   rules?: Record<string, { enabled: boolean }>;
-  context?: ElementContext;
-  runOptions?: Partial<RunOptions>;
 }
 
 export const testAccessibility = async (
@@ -15,16 +13,14 @@ export const testAccessibility = async (
   options: AccessibilityTestOptions = {}
 ) => {
   const { container } = render(ui);
-  const { rules, context, runOptions } = options;
+  const { rules } = options;
   
   const results = await axe(container, {
     rules: {
       'color-contrast': { enabled: true },
       'aria-hidden-focus': { enabled: true },
       ...rules
-    },
-    context,
-    ...runOptions
+    }
   });
 
   expect(results).toHaveNoViolations();

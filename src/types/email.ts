@@ -3,8 +3,8 @@ export type StressLevel = Priority | 'all';
 export type Category = 'inbox' | 'sent' | 'draft' | 'trash';
 
 export interface EmailSender {
-  name: string;
   email: string;
+  name?: string;
 }
 
 export interface ActionItem {

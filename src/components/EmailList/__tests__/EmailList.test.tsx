@@ -2,9 +2,30 @@ import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test-utils/test-utils';
 import { EmailList } from '../EmailList';
 import { mockEmails } from '@/test-utils/test-utils';
-import type { EmailMessage } from '@/types/email';
+import type { EmailMessage, EmailSender } from '@/types/email';
 
 describe('EmailList', () => {
+  const mockSender: EmailSender = {
+    email: 'test@example.com',
+    name: 'Test User'
+  };
+
+  const mockEmails: EmailMessage[] = [
+    {
+      id: '1',
+      subject: 'Test',
+      content: 'Test content',
+      sender: mockSender,  // Using proper EmailSender type
+      preview: 'Test preview',
+      timestamp: '2024-02-20T12:00:00Z',
+      priority: 'HIGH',
+      is_read: false,
+      category: 'inbox',
+      processed: true,
+      stress_level: 'HIGH'
+    }
+  ];
+
   it('renders loading state correctly', () => {
     render(<EmailList emails={[]} isLoading={true} />);
     expect(screen.getByRole('progressbar')).toBeInTheDocument();

@@ -1,7 +1,6 @@
 import { styled } from '@mui/material/styles';
 import { Chip } from '@mui/material';
-import { colors, StressLevel } from '../theme/theme';
-
+import { colors, type StressLevel } from '@/theme';
 interface StressChipProps {
   stressLevel: StressLevel;
 }

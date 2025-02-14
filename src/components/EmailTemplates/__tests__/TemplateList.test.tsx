@@ -1,17 +1,18 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TemplateList } from '../TemplateList';
-import { EmailTemplate } from '../../../types/template';
+import type { EmailTemplate } from '@/types/template';
 
 const mockTemplates: EmailTemplate[] = [
   {
     id: 1,
     name: 'Test Template',
-    subject_template: 'Test Subject',
-    content_template: 'Test Content',
+    subject: 'Test Subject',
+    content: 'Test Content',
     variables: [],
-    created_at: '2024-02-20T12:00:00Z',
-    updated_at: '2024-02-20T12:00:00Z'
+    category: 'general',
+    createdAt: new Date('2024-02-20T12:00:00Z'),
+    updatedAt: new Date('2024-02-20T12:00:00Z')
   }
 ];
 
@@ -27,20 +28,20 @@ describe('TemplateList', () => {
     render(
       <TemplateList
         templates={[]}
-        onEditTemplate={mockOnEdit}
-        onDeleteTemplate={mockOnDelete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
-    expect(screen.getByText(/No email templates/i)).toBeInTheDocument();
+    expect(screen.getByText(/No templates available/i)).toBeInTheDocument();
   });
 
   it('renders template list when templates exist', () => {
     render(
       <TemplateList
         templates={mockTemplates}
-        onEditTemplate={mockOnEdit}
-        onDeleteTemplate={mockOnDelete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
@@ -52,8 +53,8 @@ describe('TemplateList', () => {
     render(
       <TemplateList
         templates={mockTemplates}
-        onEditTemplate={mockOnEdit}
-        onDeleteTemplate={mockOnDelete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
@@ -65,12 +66,12 @@ describe('TemplateList', () => {
     render(
       <TemplateList
         templates={mockTemplates}
-        onEditTemplate={mockOnEdit}
-        onDeleteTemplate={mockOnDelete}
+        onEdit={mockOnEdit}
+        onDelete={mockOnDelete}
       />
     );
 
     fireEvent.click(screen.getByLabelText('delete'));
-    expect(mockOnDelete).toHaveBeenCalledWith(mockTemplates[0].id);
+    expect(mockOnDelete).toHaveBeenCalledWith(1);
   });
 }); 
