@@ -14,5 +14,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(email.router) 
+# Register email routes with proper prefix
+app.include_router(email.router, prefix="/emails", tags=["emails"])

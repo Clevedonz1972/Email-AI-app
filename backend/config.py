@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 # Get the backend directory (where config.py is located)
-BASE_DIR = Path(__file__).resolve().parent  # Removed one .parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
     DATABASE_URL: str
@@ -18,10 +18,10 @@ class Settings(BaseSettings):
     
     class Config:
         # Use absolute path for env files
-        env_file = str(BASE_DIR / ".env.test" if os.getenv("TESTING") else ".env")
+        env_file = str(BASE_DIR / (".env.test" if os.getenv("TESTING") else ".env"))
         env_file_encoding = "utf-8"
 
-print(f"Looking for env file at: {str(BASE_DIR / '.env.test' if os.getenv('TESTING') else '.env')}")
+print(f"Looking for env file at: {str(BASE_DIR / ('.env.test' if os.getenv('TESTING') else '.env'))}")
 
 settings = Settings()
 

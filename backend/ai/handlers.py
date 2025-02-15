@@ -10,11 +10,14 @@ import json
 from backend.utils.logger import logger
 
 class EmailAnalysis(BaseModel):
+    summary: str
     stress_level: StressLevel
     priority: Priority
-    summary: str
-    action_items: List[str]
+    action_items: list[str]
     sentiment_score: float
+
+    class Config:
+        extra = "allow"
 
 class AIResponse(BaseModel):
     stress_level: StressLevel
@@ -40,6 +43,9 @@ class ReplyResponse(BaseModel):
     tone: str
     formality_level: int
 
+    class Config:
+        extra = "allow"
+
 SYSTEM_PROMPT = """You are an AI assistant that always responds with valid JSON.
 Your responses must be parseable JSON objects with no additional text or explanations.
 Use lowercase for all field values and ensure they match the expected formats."""
@@ -47,11 +53,8 @@ Use lowercase for all field values and ensure they match the expected formats.""
 class AIHandler:
     def __init__(self, testing: bool = False):
         self.testing = testing
-        if not testing:  # Only check for API key if not in testing mode
-            self.api_key = os.getenv('OPENAI_API_KEY')
-            if not self.api_key:
-                raise ValueError("OPENAI_API_KEY environment variable is required")
-            openai.api_key = self.api_key
+        if testing:
+            openai.api_key = "sk-testdummyapikey"
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     @lru_cache(maxsize=100)
@@ -89,32 +92,47 @@ class AIHandler:
         return self._parse_json_response(response_text, AIResponse)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
-    def generate_reply(self, content: str, tone: Optional[str] = "professional") -> Dict[str, Union[str, int]]:
-        """Generate email reply with specified tone."""
-        prompt = {
-            "role": "system",
-            "content": f"{SYSTEM_PROMPT} Return JSON with fields: content (the reply text), "
-                      "tone (formal/casual/friendly), and formality_level (1-5)"
-        }
-        
-        user_message = {
-            "role": "user",
-            "content": f"Generate a {tone} reply to this email and return as JSON:\n\n{content}"
-        }
-
-        response_text = self._create_chat_completion([prompt, user_message])
-        return self._parse_json_response(response_text, ReplyResponse)
+    async def generate_reply(self, content: str, tone: Optional[str] = "professional") -> ReplyResponse:
+        """Generate email reply with specified tone asynchronously."""
+        try:
+            response = await openai.ChatCompletion.acreate(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": f"Generate a {tone} reply and return JSON"},
+                    {"role": "user", "content": content}
+                ],
+                temperature=0.7,
+                max_tokens=500
+            )
+            result = json.loads(response.choices[0].message.content)
+            return ReplyResponse(**result)
+        except Exception as e:
+            logger.error(f"Reply generation failed: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to generate reply")
 
     async def analyze_email(self, content: str) -> EmailAnalysis:
+        """Analyze email content and return structured analysis."""
         try:
-            response = await self._call_openai(content)
-            return AIResponse.parse_ai_response(response)
+            response = await openai.ChatCompletion.acreate(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "Analyze this email and return JSON"},
+                    {"role": "user", "content": content}
+                ]
+            )
+            result = json.loads(response.choices[0].message.content)
+            # Convert enum fields to lowercase to match the expectation
+            if "stress_level" in result and isinstance(result["stress_level"], str):
+                result["stress_level"] = result["stress_level"].lower()
+            if "priority" in result and isinstance(result["priority"], str):
+                result["priority"] = result["priority"].lower()
+            # Filter only the fields needed by EmailAnalysis
+            keys = {"summary", "stress_level", "priority", "action_items", "sentiment_score"}
+            filtered = {k: v for k, v in result.items() if k in keys}
+            return EmailAnalysis(**filtered)
         except Exception as e:
             logger.error(f"Email analysis failed: {str(e)}")
-            raise HTTPException(
-                status_code=500,
-                detail="Analysis failed"
-            )
+            raise HTTPException(status_code=500, detail="Failed to analyze email")
 
     async def generate_response_suggestion(
         self, 
@@ -161,36 +179,19 @@ Response should be:
             )
 
     async def simplify_content(self, content: str) -> str:
-        """Simplify complex email content while maintaining key information."""
+        """Simplify email content."""
         try:
-            prompt = f"""Simplify this email content while keeping all important information:
-{content}
-
-Guidelines:
-1. Use clear, direct language
-2. Break down complex sentences
-3. Maintain all key points
-4. Organize information logically
-5. Highlight important dates or deadlines
-"""
-
             response = await openai.ChatCompletion.acreate(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": "You are an AI assistant specialized in simplifying text while maintaining meaning."},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.3,
-                max_tokens=500
+                    {"role": "system", "content": "Simplify this email"},
+                    {"role": "user", "content": content}
+                ]
             )
-
             return response.choices[0].message.content
-
         except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error simplifying content: {str(e)}"
-            )
+            logger.error(f"Content simplification failed: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to simplify content")
 
     def _parse_analysis(self, response: str) -> Dict:
         """Parse the AI response into structured data."""
