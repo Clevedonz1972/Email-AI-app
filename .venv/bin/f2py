@@ -1,6 +1,4 @@
-#!/bin/sh
-'''exec' "/Users/msdeyncourtharvey/Documents/Documents - MS’s MacBook Air/Email AI app/.venv/bin/python" "$0" "$@"
-' '''
+#!/Users/msdeyncourtharvey/Projects/Email-AI-app/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

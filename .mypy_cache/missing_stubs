@@ -1,0 +1,11 @@
+types-PyMySQL
+types-PyYAML
+types-Pygments
+types-greenlet
+types-passlib
+types-pexpect
+types-psycopg2
+types-python-jose
+types-requests
+types-setuptools
+types-ujson

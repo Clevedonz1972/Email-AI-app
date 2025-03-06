@@ -1,44 +1,40 @@
 import { http, HttpResponse } from 'msw';
-import { mockEmails } from '../../test-utils/test-utils';
+import { mockEmails } from '@/test/utils/mockData';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_URL = process.env.REACT_APP_API_URL || '/api';
 
 export const handlers = [
-  // Auth handlers
-  http.post(`${API_URL}/api/auth/login`, () => {
+  // Auth endpoints
+  http.post(`${API_URL}/auth/login`, () => {
     return HttpResponse.json({
-      token: 'fake-jwt-token',
       user: {
-        id: 1,
-        email: 'test@example.com'
+        id: '1',
+        email: 'test@example.com',
+        name: 'Test User'
+      },
+      tokens: {
+        accessToken: 'fake-access-token',
+        refreshToken: 'fake-refresh-token'
       }
     });
   }),
 
-  // AI handlers
-  http.post(`${API_URL}/api/ai/summarize`, () => {
-    return HttpResponse.json({
-      success: true,
-      summary: 'Test summary',
-      priority: 'HIGH',
-      actions: ['Action 1', 'Action 2']
-    });
+  http.post(`${API_URL}/auth/forgot-password`, () => {
+    return HttpResponse.json({ message: 'Password reset email sent' });
   }),
 
-  http.post(`${API_URL}/api/ai/priority`, () => {
-    return HttpResponse.json({
-      success: true,
-      priority: 'HIGH'
-    });
+  http.post(`${API_URL}/auth/reset-password/:token`, () => {
+    return HttpResponse.json({ message: 'Password updated successfully' });
   }),
 
+  // Email endpoints
   http.get(`${API_URL}/emails`, () => {
     return HttpResponse.json(mockEmails);
   }),
 
   http.get(`${API_URL}/emails/:id`, ({ params }) => {
     const { id } = params;
-    const email = mockEmails.find(email => email.id === id);
+    const email = mockEmails.find(email => email.id === Number(id));
     
     if (!email) {
       return new HttpResponse(null, { status: 404 });

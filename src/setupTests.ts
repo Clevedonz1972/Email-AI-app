@@ -1,6 +1,16 @@
 import '@testing-library/jest-dom';
 import { configure } from '@testing-library/react';
 import { toHaveNoViolations } from 'jest-axe';
+import './test/utils/matchers';
+
+// Polyfill TextEncoder/TextDecoder
+if (typeof global.TextEncoder === 'undefined') {
+  const { TextEncoder, TextDecoder } = require('util');
+  global.TextEncoder = TextEncoder;
+  global.TextDecoder = TextDecoder;
+  global.ArrayBuffer = ArrayBuffer;
+  global.Uint8Array = Uint8Array;
+}
 
 // Configure testing library with extended timeout for accessibility tests
 configure({ 
@@ -47,4 +57,7 @@ Object.defineProperty(window, 'IntersectionObserver', {
 
 // Add any other global mocks or setup here 
 
-configure({ testIdAttribute: 'data-testid' }); 
+configure({ testIdAttribute: 'data-testid' });
+
+// Extend timeout for async operations
+jest.setTimeout(10000); 

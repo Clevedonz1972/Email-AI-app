@@ -39,6 +39,7 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 .Python
 venv/
 .env/
@@ -47,9 +48,28 @@ venv/
 .coverage
 htmlcov/
 .pytest_cache/
+.tox/
 
 # Build
 *.egg-info/
 dist/
 build/ postgres-data/
 *.env*
+
+# Logs
+logs/*
+!logs/.gitkeep
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Database
+*.db
+*.sqlite3
+
+# Node
+node_modules/

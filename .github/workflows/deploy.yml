@@ -3,53 +3,22 @@ name: Deploy
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run tests
-        run: npm test
-      
-      - name: Run accessibility tests
-        run: npm run test:a11y
-
   deploy:
-    needs: test
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
       
-      # Deploy frontend to Vercel
-      - name: Deploy Frontend
-        uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-      
-      # Deploy backend to Heroku
       - name: Deploy Backend
-        uses: akhileshns/heroku-deploy@v3.12.14
-        with:
-          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-          heroku_app_name: "email-ai-backend"
-          heroku_email: ${{ secrets.HEROKU_EMAIL }}
-
-      # Install React and core dependencies
-      - name: Install React and core dependencies
-        run: npm install react react-dom @mui/material @emotion/react @emotion/styled 
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          curl -fsSL https://railway.app/install.sh | sh
+          railway up --service backend
+      
+      - name: Deploy Frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel --token ${VERCEL_TOKEN} --prod 

@@ -1,19 +1,17 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TemplateEditor } from '../TemplateEditor';
-import { EmailTemplate } from '../../../types/template';
+import type { EmailTemplate } from '@/types/template';
 
 const mockTemplate: EmailTemplate = {
   id: 1,
   name: 'Test Template',
-  subject_template: 'Hello {{name}}',
-  content_template: 'Dear {{name}},\n\nBest regards,\n{{sender}}',
-  variables: [
-    { name: 'name', description: 'Recipient name', required: true },
-    { name: 'sender', description: 'Sender name', required: true }
-  ],
-  created_at: '2024-02-20T12:00:00Z',
-  updated_at: '2024-02-20T12:00:00Z'
+  subject: 'Hello {{name}}',
+  content: 'Dear {{name}},\n\nThis is a test template.\n\nBest regards,\n{{sender}}',
+  variables: ['name', 'sender'],
+  category: 'general',
+  createdAt: new Date('2024-02-20T12:00:00Z'),
+  updatedAt: new Date('2024-02-20T12:00:00Z')
 };
 
 describe('TemplateEditor', () => {
@@ -33,9 +31,9 @@ describe('TemplateEditor', () => {
       />
     );
 
-    expect(screen.getByLabelText(/template name/i)).toHaveValue('');
-    expect(screen.getByLabelText(/subject template/i)).toHaveValue('');
-    expect(screen.getByLabelText(/content template/i)).toHaveValue('');
+    expect(screen.getByLabelText('Template Name')).toHaveValue('');
+    expect(screen.getByLabelText('Subject Template')).toHaveValue('');
+    expect(screen.getByLabelText('Content Template')).toHaveValue('');
   });
 
   it('renders form with template data for editing', () => {
@@ -48,9 +46,9 @@ describe('TemplateEditor', () => {
       />
     );
 
-    expect(screen.getByLabelText(/template name/i)).toHaveValue('Test Template');
-    expect(screen.getByLabelText(/subject template/i)).toHaveValue('Hello {{name}}');
-    expect(screen.getByLabelText(/content template/i)).toHaveValue(mockTemplate.content_template);
+    expect(screen.getByLabelText('Template Name')).toHaveValue('Test Template');
+    expect(screen.getByLabelText('Subject Template')).toHaveValue('Hello {{name}}');
+    expect(screen.getByLabelText('Content Template')).toHaveValue(mockTemplate.content);
   });
 
   it('handles variable insertion', () => {
@@ -63,7 +61,7 @@ describe('TemplateEditor', () => {
       />
     );
 
-    const contentInput = screen.getByLabelText(/content template/i);
+    const contentInput = screen.getByLabelText('Content Template');
     contentInput.focus();
     fireEvent.click(screen.getByText('name'));
 
@@ -79,11 +77,11 @@ describe('TemplateEditor', () => {
       />
     );
 
-    fireEvent.click(screen.getByText(/save template/i));
+    fireEvent.click(screen.getByText('Save Template'));
 
     await waitFor(() => {
       expect(mockOnSave).not.toHaveBeenCalled();
     });
-    expect(screen.getByText(/name is required/i)).toBeInTheDocument();
+    expect(screen.getByText('Name is required')).toBeInTheDocument();
   });
 }); 

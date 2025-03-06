@@ -8,37 +8,41 @@ interface RGB {
   b: number;
 }
 
-export function parseColor(color: string): RGB {
+export function parseColor(color: string): [number, number, number] {
   // Handle hex
   if (color.startsWith('#')) {
     const hex = color.slice(1);
-    return {
-      r: parseInt(hex.slice(0, 2), 16),
-      g: parseInt(hex.slice(2, 4), 16),
-      b: parseInt(hex.slice(4, 6), 16)
-    };
+    const r = parseInt(hex.slice(0, 2), 16);
+    const g = parseInt(hex.slice(2, 4), 16);
+    const b = parseInt(hex.slice(4, 6), 16);
+    return [r, g, b];
   }
   
   // Handle rgb/rgba
-  if (color.startsWith('rgb')) {
-    const [r, g, b] = color
-      .replace(/[rgba()]/g, '')
-      .split(',')
-      .map(n => parseInt(n.trim()));
-    return { r, g, b };
-  }
-  
-  throw new Error(`Unsupported color format: ${color}`);
+  const rgbRegex = /\d+/g;
+  const values = color.match(rgbRegex)?.map(Number) ?? [0, 0, 0];
+  return [values[0], values[1], values[2]];
 }
 
+// Convert RGB/RGBA color to relative luminance
+const getLuminance = (color: string): number => {
+  const [r, g, b] = parseColor(color);
+  const [rr, gg, bb] = [r, g, b].map(value => {
+    const normalizedValue = value / 255;
+    return normalizedValue <= 0.03928
+      ? normalizedValue / 12.92
+      : Math.pow((normalizedValue + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * rr + 0.7152 * gg + 0.0722 * bb;
+};
+
+// Calculate contrast ratio between two colors
 export function getColorContrast(color1: string, color2: string): number {
-  const rgb1 = parseColor(color1);
-  const rgb2 = parseColor(color2);
-  
-  return checker.getContrastRatio(
-    `rgb(${rgb1.r},${rgb1.g},${rgb1.b})`,
-    `rgb(${rgb2.r},${rgb2.g},${rgb2.b})`
-  );
+  const l1 = getLuminance(color1);
+  const l2 = getLuminance(color2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 export function isColorContrastValid(

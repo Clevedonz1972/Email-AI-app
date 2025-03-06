@@ -9,9 +9,10 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logger';
+import { AnimatedAlert } from '../Common/AnimatedAlert';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -20,6 +21,9 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const message = location.state?.message;
+  const severity = location.state?.severity || 'info';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +64,15 @@ export const Login: React.FC = () => {
           Sign In
         </Typography>
 
+        {message && (
+          <AnimatedAlert
+            show={true}
+            severity={severity}
+            message={message}
+            sx={{ mb: 3 }}
+          />
+        )}
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -89,6 +102,20 @@ export const Login: React.FC = () => {
             required
             autoComplete="current-password"
           />
+
+          <Box sx={{ mb: 2, textAlign: 'right' }}>
+            <Link
+              component={RouterLink}
+              to="/forgot-password"
+              variant="body2"
+              sx={{ 
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'underline' }
+              }}
+            >
+              Forgot Password?
+            </Link>
+          </Box>
 
           <Button
             type="submit"

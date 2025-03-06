@@ -13,8 +13,8 @@ import type { EmailMessage } from '@/types/email';
 
 interface EmailCardProps {
   email: EmailMessage;
-  onMarkRead?: (id: string) => void;
-  onFlag?: (id: string) => void;
+  onMarkRead?: (id: number) => void;
+  onFlag?: (id: number) => void;
 }
 
 export const EmailCard: React.FC<EmailCardProps> = ({

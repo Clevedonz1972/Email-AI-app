@@ -14,7 +14,7 @@ import {
 import { useSensoryPreferences } from '../../hooks/useSensoryPreferences';
 import type { SensoryPreferences } from '@/types/preferences';
 
-export const SensorySettings: React.FC = (): JSX.Element => {
+export const SensorySettings: React.FC = () => {
   const { preferences, updatePreference } = useSensoryPreferences();
 
   return (

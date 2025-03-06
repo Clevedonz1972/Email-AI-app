@@ -1,47 +1,60 @@
 import React from 'react';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { EmailProvider } from './contexts/EmailContext';
-import { ProtectedRoute } from './components/Auth/ProtectedRoute';
-import { Login } from './components/Auth/Login';
-import { Register } from './components/Auth/Register';
-import { Dashboard } from './components/Dashboard/Dashboard';
-import { theme } from '@/theme';
+import { BrowserRouter } from 'react-router-dom';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { AccessibilityProvider } from './contexts/AccessibilityContext';
+import { useAccessibility } from './contexts/AccessibilityContext';
+import Routes from './routes';
 
-function App() {
+const ThemedApp: React.FC = () => {
+  const { preferences } = useAccessibility();
+  
+  const theme = React.useMemo(() => createTheme({
+    palette: {
+      mode: preferences.colorScheme === 'dark' ? 'dark' : 'light',
+      ...(preferences.customColors && {
+        background: {
+          default: preferences.customColors.background,
+          paper: preferences.customColors.background,
+        },
+        text: {
+          primary: preferences.customColors.text,
+        },
+        primary: {
+          main: preferences.customColors.accent,
+        },
+      }),
+    },
+    typography: {
+      fontSize: preferences.fontSize,
+    },
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: {
+            lineHeight: preferences.lineSpacing,
+            transition: preferences.reducedMotion ? 'none' : undefined,
+          },
+        },
+      },
+    },
+  }), [preferences]);
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Routes />
+    </ThemeProvider>
+  );
+};
+
+const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <EmailProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route 
-                path="/" 
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-            </Routes>
-          </EmailProvider>
-        </ThemeProvider>
-      </AuthProvider>
+      <AccessibilityProvider>
+        <ThemedApp />
+      </AccessibilityProvider>
     </BrowserRouter>
   );
-}
+};
 
 export default App; 

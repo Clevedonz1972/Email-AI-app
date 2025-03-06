@@ -1,6 +1,7 @@
 import { styled } from '@mui/material/styles';
 import { Chip } from '@mui/material';
-import { colors, type StressLevel } from '@/theme';
+import { colors, StressLevel } from '@/theme/index';
+
 interface StressChipProps {
   stressLevel: StressLevel;
 }
@@ -10,10 +11,10 @@ export const StressLevelChip = styled(Chip, {
 })<StressChipProps>(({ theme, stressLevel }) => ({
   margin: theme.spacing(0.5),
   '&.MuiChip-root': {
-    borderColor: colors[stressLevel],
-    color: colors[stressLevel],
+    borderColor: colors.stress[stressLevel],
+    color: colors.stress[stressLevel],
     '&.Mui-selected': {
-      backgroundColor: colors[stressLevel],
+      backgroundColor: colors.stress[stressLevel],
     }
   }
 })); 

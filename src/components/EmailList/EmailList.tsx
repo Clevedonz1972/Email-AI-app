@@ -6,8 +6,8 @@ import type { EmailMessage } from '@/types/email';
 interface EmailListProps {
   emails: readonly EmailMessage[];
   isLoading?: boolean;
-  onMarkRead?: (id: string) => void;
-  onFlag?: (id: string) => void;
+  onMarkRead?: (id: number) => void;
+  onFlag?: (id: number) => void;
 }
 
 export const EmailList: React.FC<EmailListProps> = ({

@@ -1,30 +1,29 @@
-import React, { useState } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from '@mui/material/styles';
-import { CssBaseline, Button } from '@mui/material';
-import { createAppTheme } from './theme';
+import { CssBaseline } from '@mui/material';
+import createAppTheme from './theme/index';
 import App from './App';
+import { AccessibilityProvider, useAccessibility } from './contexts/AccessibilityContext';
 
-const Root = () => {
-  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
-
-  const toggleTheme = () => {
-    setThemeMode(themeMode === 'light' ? 'dark' : 'light');
-  };
-
+const ThemedApp = () => {
+  const { preferences } = useAccessibility();
   return (
-    <ThemeProvider theme={createAppTheme(themeMode)}>
+    <ThemeProvider theme={createAppTheme(preferences)}>
       <CssBaseline />
-      <Button onClick={toggleTheme} sx={{ position: 'absolute', top: 10, right: 10 }}>
-        {themeMode === 'light' ? '🌙 Dark Mode' : '☀️ Light Mode'}
-      </Button>
       <App />
     </ThemeProvider>
   );
 };
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+const root = ReactDOM.createRoot(
+  document.getElementById('root') as HTMLElement
+);
+
+root.render(
   <React.StrictMode>
-    <Root />
+    <AccessibilityProvider>
+      <ThemedApp />
+    </AccessibilityProvider>
   </React.StrictMode>
 );

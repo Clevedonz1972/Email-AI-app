@@ -106,6 +106,31 @@ export const OnboardingFlow: React.FC = () => {
     window.location.href = '/dashboard';
   };
 
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      const response = await fetch('http://localhost:8006/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Important for cookies
+      });
+
+      if (!response.ok) {
+        throw new Error('Login failed');
+      }
+
+      const data = await response.json();
+      // Store the token in localStorage or state management
+      localStorage.setItem('accessToken', data.access_token);
+      // Handle successful login (e.g., redirect)
+    } catch (error) {
+      console.error('Login error:', error);
+      // Handle error (show message to user)
+    }
+  };
+
   return (
     <OnboardingPaper elevation={3}>
       <Typography variant="h4" gutterBottom align="center" color="primary">

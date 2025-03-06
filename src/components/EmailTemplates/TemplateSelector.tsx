@@ -65,9 +65,9 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
 
     // Replace variables in subject and content
     Object.entries(variables).forEach(([key, value]) => {
-      const regex = new RegExp(`{{${key}}}`, 'g');
-      subject = subject.replace(regex, value);
-      content = content.replace(regex, value);
+      const placeholder = `{{${key}}}`;
+      subject = subject.split(placeholder).join(value);
+      content = content.split(placeholder).join(value);
     });
 
     onSelect(subject, content);

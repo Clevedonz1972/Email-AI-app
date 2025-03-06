@@ -61,7 +61,7 @@ const StressChip = styled(Chip)<{ level: string }>(({ theme, level }) => ({
 interface ActionItemProps {
   item: ActionItem;
   index: number;
-  emailId: string;
+  emailId: number;
 }
 
 const ActionItemComponent: React.FC<ActionItemProps> = ({ item, index, emailId }) => (
@@ -80,7 +80,7 @@ export const EmailList: React.FC<EmailListProps> = ({
   isLoading,
 }) => {
   const theme = useTheme();
-  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
+  const [expandedEmail, setExpandedEmail] = useState<number | null>(null);
 
   const filteredEmails = emails.filter((email) => {
     const categoryMatch =
@@ -90,7 +90,7 @@ export const EmailList: React.FC<EmailListProps> = ({
     return categoryMatch && stressMatch;
   });
 
-  const handleExpand = (emailId: string) => {
+  const handleExpand = (emailId: number) => {
     setExpandedEmail(expandedEmail === emailId ? null : emailId);
   };
 

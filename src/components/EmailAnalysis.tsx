@@ -1,32 +1,33 @@
 import { useAI } from '../hooks/useAI';
 import { Alert, Progress, Button } from '../components/ui';
+import type { EmailMessage } from '../types/email';
 
-export const EmailAnalysis: React.FC<{email: Email}> = ({ email }) => {
-  const { analyze, loading, error } = useAI();
+export const EmailAnalysis: React.FC<{email: EmailMessage}> = ({ email }) => {
+  const { analyzeEmail, isLoading, userErrorMessage } = useAI();
   
   return (
     <div role="region" aria-label="Email Analysis">
-      {loading && (
+      {isLoading && (
         <div aria-live="polite">
           <Progress 
-            value={loading.progress} 
+            value={50} 
             aria-label="Analysis in progress"
           />
-          <p className="text-sm">Analyzing email... {loading.progress}%</p>
+          <p className="text-sm">Analyzing email...</p>
         </div>
       )}
       
-      {error && (
+      {userErrorMessage && (
         <Alert 
-          variant="error"
+          severity="error"
           aria-live="assertive"
           action={
-            <Button onClick={() => analyze(email)}>
+            <Button onClick={() => analyzeEmail(email.content)}>
               Try Again
             </Button>
           }
         >
-          {error.message}
+          {userErrorMessage}
         </Alert>
       )}
       

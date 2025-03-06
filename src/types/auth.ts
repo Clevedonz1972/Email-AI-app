@@ -1,7 +1,7 @@
 export interface User {
-  id: number;
+  id: string;
   email: string;
-  created_at: string;
+  name?: string;
 }
 
 export interface LoginCredentials {
@@ -9,11 +9,17 @@ export interface LoginCredentials {
   password: string;
 }
 
-export interface RegisterCredentials extends LoginCredentials {
-  confirmPassword: string;
+export interface RegisterCredentials {
+  email: string;
+  password: string;
+  name?: string;
 }
 
 export interface AuthResponse {
-  token: string;
   user: User;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  };
 } 
