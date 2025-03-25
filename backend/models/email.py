@@ -52,6 +52,9 @@ class Email(BaseModel):
     category = relationship("Category", back_populates="emails")
     analytics = relationship("EmailAnalytics", back_populates="email", uselist=False)
     analysis = relationship("EmailAnalysis", back_populates="email", uselist=False)
+    quick_feedback = relationship("QuickFeedback", back_populates="email")
+    detailed_feedback = relationship("DetailedFeedback", back_populates="email")
+    stress_accuracy = relationship("StressLevelAccuracy", back_populates="email")
 
 
 class EmailMessage(BaseModel):

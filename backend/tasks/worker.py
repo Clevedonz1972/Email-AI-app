@@ -25,20 +25,18 @@ Base.metadata.create_all(bind=engine)
 
 # Initialize Celery
 celery = Celery(
-    "email_tasks",
-    broker=settings.CELERY_BROKER_URL,
-    backend=settings.CELERY_RESULT_BACKEND
+    'email_tasks',
+    broker=f'redis://{settings.REDIS_HOST}:6379/0',
+    backend=f'redis://{settings.REDIS_HOST}:6379/0'
 )
 
 # Configure Celery
 celery.conf.update(
-    task_serializer="json",
-    accept_content=["json"],
-    result_serializer="json",
-    timezone="UTC",
+    task_serializer='json',
+    accept_content=['json'],
+    result_serializer='json',
+    timezone='UTC',
     enable_utc=True,
-    task_time_limit=900,  # 15 minutes
-    task_soft_time_limit=600,  # 10 minutes
 )
 
 # Configure periodic tasks

@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Path
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, Path, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 import os
+import uuid
 
 from backend.models.email import Email, StressLevel, Priority
 from backend.models.user import User
+from backend.models.analytics import UserAnalytics
+from backend.models.user import UserPreferences
 from backend.schemas.email import (
     EmailCreate,
     EmailResponse,
@@ -21,8 +24,9 @@ from backend.database import get_db
 from backend.ai.handlers import AIHandler
 from backend.utils.logger import logger, log_error, log_accessibility_event
 from backend.config import settings
-from backend.services.stress_analysis import analyze_email_stress
+from backend.services.stress_analysis import analyze_email_stress, StressAnalyzer
 from backend.services.openai_service import analyze_content
+from backend.utils.email_parsing import parse_email_file
 
 router = APIRouter(tags=["emails"])
 testing_mode = os.getenv("TESTING") == "1"
@@ -111,6 +115,163 @@ async def get_emails(
         query = query.filter(Email.priority == priority)
 
     return query.offset(skip).limit(limit).all()
+
+
+@router.get("/test-emails", response_model=List[EmailResponse])
+async def get_test_emails(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get test emails for development."""
+    try:
+        test_emails = [
+            {
+                "id": 1,
+                "subject": "Urgent Project Deadline",
+                "content": "We need to complete the project by tomorrow. This is extremely urgent and requires immediate attention.",
+                "sender": {"email": "manager@example.com", "name": "Project Manager"},
+                "recipient": {"email": current_user.email, "name": current_user.full_name},
+                "user_id": current_user.id,
+                "timestamp": datetime.now(),
+                "stress_level": "HIGH",
+                "priority": "HIGH",
+                "is_read": False,
+                "is_processed": True,
+                "summary": "Urgent project deadline requiring immediate action.",
+                "action_items": ["Complete project tasks", "Submit deliverables by tomorrow"],
+                "sentiment_score": -0.8
+            },
+            {
+                "id": 2,
+                "subject": "Team Lunch Next Week",
+                "content": "Let's plan a team lunch next week to celebrate our recent success. Please share your availability.",
+                "sender": {"email": "team@example.com", "name": "Team Lead"},
+                "recipient": {"email": current_user.email, "name": current_user.full_name},
+                "user_id": current_user.id,
+                "timestamp": datetime.now(),
+                "stress_level": "LOW",
+                "priority": "LOW",
+                "is_read": False,
+                "is_processed": True,
+                "summary": "Team lunch planning for next week to celebrate success.",
+                "action_items": ["Share availability for lunch", "Check calendar for next week"],
+                "sentiment_score": 0.7
+            },
+            {
+                "id": 3,
+                "subject": "Weekly Status Update Required",
+                "content": "Please submit your weekly status update by end of day. This helps us track project progress.",
+                "sender": {"email": "supervisor@example.com", "name": "Supervisor"},
+                "recipient": {"email": current_user.email, "name": current_user.full_name},
+                "user_id": current_user.id,
+                "timestamp": datetime.now(),
+                "stress_level": "MEDIUM",
+                "priority": "MEDIUM",
+                "is_read": False,
+                "is_processed": True,
+                "summary": "Weekly status update due by end of day.",
+                "action_items": ["Prepare status update", "Submit by EOD"],
+                "sentiment_score": -0.2
+            }
+        ]
+        return test_emails
+    except Exception as e:
+        logger.error(f"Error getting test emails: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get test emails")
+
+
+@router.get("/stress-report", response_model=Dict)
+async def get_stress_report(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+) -> Dict:
+    try:
+        # Get recent emails (last 24 hours)
+        recent_emails = (
+            db.query(Email)
+            .filter(Email.user_id == current_user.id)
+            .filter(Email.received_at >= (datetime.now() - timedelta(hours=24)))
+            .all()
+        )
+        
+        # Get user preferences for stress sensitivity
+        user_preferences = (
+            db.query(UserPreferences)
+            .filter(UserPreferences.user_id == current_user.id)
+            .first()
+        )
+        
+        if not user_preferences:
+            user_preferences = UserPreferences(user_id=current_user.id)
+            db.add(user_preferences)
+            db.commit()
+            db.refresh(user_preferences)
+        
+        # Initialize stress analyzer
+        stress_analyzer = StressAnalyzer(user_preferences)
+        
+        # Calculate stress levels for recent emails
+        stress_levels = []
+        for email in recent_emails:
+            analysis = await stress_analyzer.analyze_email_stress(email.content, email.subject)
+            stress_levels.append(analysis.get("stress_level", "LOW"))
+        
+        # Determine overall stress
+        high_stress_count = stress_levels.count("HIGH")
+        medium_stress_count = stress_levels.count("MEDIUM")
+        
+        overall_stress = "LOW"
+        if high_stress_count >= 3 or (high_stress_count >= 1 and medium_stress_count >= 3):
+            overall_stress = "HIGH"
+        elif high_stress_count >= 1 or medium_stress_count >= 2:
+            overall_stress = "MEDIUM"
+        
+        # Determine if user needs a break based on recent stress patterns
+        user_analytics = (
+            db.query(UserAnalytics)
+            .filter(UserAnalytics.user_id == current_user.id)
+            .order_by(UserAnalytics.timestamp.desc())
+            .first()
+        )
+        
+        consecutive_high_stress = 0
+        needs_break = False
+        
+        if user_analytics and user_analytics.high_stress_events >= 3:
+            needs_break = True
+        elif high_stress_count >= 2:
+            needs_break = True
+        
+        # Generate personalized recommendations
+        recommendations = []
+        if needs_break:
+            recommendations.append("Consider taking a 5-minute break from your emails")
+        
+        if high_stress_count > 0:
+            recommendations.append("Focus on high-priority emails first")
+        
+        if medium_stress_count + high_stress_count > 3:
+            recommendations.append("Enable quiet hours for the next hour")
+            
+        if overall_stress != "LOW":
+            recommendations.append("Use AI assistance to draft replies to challenging emails")
+        
+        if not recommendations:
+            recommendations.append("You're doing well! Keep up the good work")
+            
+        return {
+            "overallStress": overall_stress,
+            "needsBreak": needs_break,
+            "recommendations": recommendations,
+            "stressBreakdown": {
+                "high": high_stress_count,
+                "medium": medium_stress_count,
+                "low": len(stress_levels) - high_stress_count - medium_stress_count
+            }
+        }
+    except Exception as e:
+        log_error(f"Error retrieving stress report: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve stress report")
 
 
 @router.get("/{email_id}", response_model=EmailResponse)
@@ -384,33 +545,74 @@ async def update_email_analytics(email_id: int, analysis: Dict, db: Session):
 async def get_reply_suggestions(
     email_id: int = Path(..., gt=0),
     tone: Optional[str] = Query("professional", description="Desired tone of reply"),
+    simplified: Optional[bool] = Query(False, description="Include simplified version for cognitive accessibility"),
+    breakdown_tasks: Optional[bool] = Query(False, description="Break down complex tasks into steps"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Get AI-generated reply suggestions with accessibility considerations"""
+    """Get AI-generated reply suggestions with neurodiversity accommodations"""
     try:
         # Get original email
         email = await get_email(email_id, current_user.id, db)
         
-        # Get user's accessibility preferences
-        preferences = current_user.preferences or {}
+        # Get user's preferences
+        preferences = current_user.preferences or User.get_default_preferences()
+        
+        # Enhance context with neurodiversity accommodations
+        accessibility_context = {
+            "tone": tone,
+            "preferences": preferences,
+            "simplify_language": simplified or preferences.get("cognitiveLoadReduction", False),
+            "stress_sensitive": preferences.get("stressSensitivity", "MEDIUM"),
+            "neurodiverse_focus": True,
+            "breakdown_tasks": breakdown_tasks or preferences.get("taskBreakdownAssistance", False),
+            "anxiety_triggers": preferences.get("anxietyTriggers", ["urgent", "ASAP", "deadline"])
+        }
         
         # Generate reply suggestions
-        suggestions = await generate_reply(
+        response = await analyze_content(
             email.content,
-            tone=tone,
-            preferences=preferences
+            context=accessibility_context
         )
+        
+        # Get available tones
+        available_tones = ["Professional", "Friendly", "Direct", "Simple"]
+        if preferences.get("preferredTones"):
+            available_tones = preferences.get("preferredTones")
+        
+        # Prepare response with neurodiversity considerations
+        reply_options = {
+            "suggestions": [
+                response.get("suggestion_formal", "I'm sorry, I couldn't generate a formal suggestion."),
+                response.get("suggestion_friendly", "I'm sorry, I couldn't generate a friendly suggestion.")
+            ],
+            "tone_analysis": response.get("tone_analysis", ""),
+            "stress_level": response.get("stress_level", "MEDIUM"),
+            "available_tones": available_tones
+        }
+        
+        # Include simplified version if requested
+        if simplified or preferences.get("cognitiveLoadReduction", False):
+            reply_options["simplified_version"] = response.get("simplified_version", "")
+            
+        # Include task breakdown if requested
+        if breakdown_tasks or preferences.get("taskBreakdownAssistance", False):
+            reply_options["task_breakdown"] = response.get("action_items", [])
         
         # Log accessibility event
         log_accessibility_event(
-            "reply_suggestions_generated",
-            {"email_id": email_id, "tone": tone}
+            "neurodiverse_reply_suggestions_generated",
+            {
+                "email_id": email_id, 
+                "tone": tone,
+                "simplified": simplified,
+                "breakdown_tasks": breakdown_tasks
+            }
         )
         
-        return suggestions
+        return reply_options
     except Exception as e:
-        log_error(e, {"email_id": email_id, "action": "reply_suggestions"})
+        log_error(f"Failed to generate reply suggestions: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail="Failed to generate reply suggestions"

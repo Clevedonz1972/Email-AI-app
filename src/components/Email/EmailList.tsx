@@ -11,6 +11,17 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+  TextField,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Error as HighStressIcon,
@@ -19,9 +30,15 @@ import {
   Star as PriorityIcon,
   Mail as UnreadIcon,
   MailOutline as ReadIcon,
+  Reply as ReplyIcon,
+  AutoAwesome as AIIcon,
+  Send as SendIcon,
+  Edit as EditIcon,
+  Description as DescriptionIcon,
 } from '@mui/icons-material';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
 import { useKeyboardNavigation } from '../../hooks/useKeyboardNavigation';
+import { emailService } from '../../services/emailService';
 import type { EmailMessage } from '@/types/email';
 
 interface EmailListProps {
@@ -29,6 +46,8 @@ interface EmailListProps {
   loading: boolean;
   onSelectEmail: (email: EmailMessage) => void;
   onMarkRead: (id: number) => void;
+  selectedEmailId?: number;
+  onSendReply?: (emailId: number, content: string) => Promise<void>;
 }
 
 export const EmailList: React.FC<EmailListProps> = ({
@@ -36,9 +55,34 @@ export const EmailList: React.FC<EmailListProps> = ({
   loading,
   onSelectEmail,
   onMarkRead,
+  selectedEmailId,
+  onSendReply,
 }) => {
   const { preferences } = useAccessibility();
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+  
+  // Quick Reply state
+  const [quickReplyEmail, setQuickReplyEmail] = useState<EmailMessage | null>(null);
+  const [replyAnchorEl, setReplyAnchorEl] = useState<null | HTMLElement>(null);
+  const [replyOptions, setReplyOptions] = useState<string[]>([]);
+  const [isLoadingReplies, setIsLoadingReplies] = useState(false);
+  const [customReplyOpen, setCustomReplyOpen] = useState(false);
+  const [customReplyText, setCustomReplyText] = useState('');
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'info' | 'warning'
+  });
+  
+  // Update selected index when selectedEmailId changes
+  useEffect(() => {
+    if (selectedEmailId) {
+      const index = emails.findIndex(email => email.id === selectedEmailId);
+      if (index !== -1) {
+        setSelectedIndex(index);
+      }
+    }
+  }, [selectedEmailId, emails]);
 
   useKeyboardNavigation({
     enabled: true,
@@ -50,6 +94,104 @@ export const EmailList: React.FC<EmailListProps> = ({
       }
     },
   });
+
+  const handleQuickReply = (event: React.MouseEvent<HTMLButtonElement>, email: EmailMessage) => {
+    event.stopPropagation(); // Prevent triggering the ListItem onClick
+    setQuickReplyEmail(email);
+    setReplyAnchorEl(event.currentTarget);
+    setIsLoadingReplies(true);
+    setReplyOptions([]);
+    
+    // Generate quick reply options
+    generateReplyOptions(email.id)
+      .then(() => {
+        setIsLoadingReplies(false);
+      })
+      .catch(error => {
+        console.error('Error generating reply options:', error);
+        setIsLoadingReplies(false);
+        setSnackbar({
+          open: true,
+          message: 'Failed to generate reply options',
+          severity: 'error'
+        });
+      });
+  };
+
+  const generateReplyOptions = async (emailId: number) => {
+    try {
+      const options = await emailService.getReplyOptions(emailId);
+      if (options.suggestions && options.suggestions.length > 0) {
+        // Extract just the content from the suggestions
+        const replies = options.suggestions.map((option: any) => option.content || option);
+        setReplyOptions(replies);
+      } else if (options.simplified_version) {
+        setReplyOptions([options.simplified_version]);
+      } else {
+        // Fallback options if no AI suggestions
+        setReplyOptions([
+          "Thank you for your email. I'll get back to you as soon as possible.",
+          "I've received your email and will review it shortly.",
+          "Thanks for reaching out. I'll respond after reviewing the details."
+        ]);
+      }
+    } catch (error) {
+      console.error('Error getting reply options:', error);
+      throw error;
+    }
+  };
+
+  const handleMenuClose = () => {
+    setReplyAnchorEl(null);
+  };
+
+  const handleCustomReply = () => {
+    handleMenuClose();
+    if (quickReplyEmail) {
+      // Initialize with the first reply option or empty string
+      setCustomReplyText(replyOptions.length > 0 ? replyOptions[0] : '');
+      setCustomReplyOpen(true);
+    }
+  };
+
+  const handleSendReply = async (replyText: string) => {
+    if (!quickReplyEmail) return;
+    
+    try {
+      // Call the onSendReply prop if available
+      if (onSendReply) {
+        await onSendReply(quickReplyEmail.id, replyText);
+      }
+      
+      // Mark as read
+      onMarkRead(quickReplyEmail.id);
+      
+      // Show success message
+      setSnackbar({
+        open: true,
+        message: 'Reply sent successfully!',
+        severity: 'success'
+      });
+      
+      // Close menu
+      handleMenuClose();
+      setCustomReplyOpen(false);
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to send reply',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({
+      ...snackbar,
+      open: false
+    });
+  };
 
   const getStressIcon = (level: string) => {
     switch (level) {
@@ -64,10 +206,52 @@ export const EmailList: React.FC<EmailListProps> = ({
     }
   };
 
+  // Add email templates for common scenarios
+  const emailTemplates = [
+    {
+      name: "Meeting Acceptance",
+      content: "Thank you for the invitation. I'd be happy to attend the meeting at the specified time. I've added it to my calendar."
+    },
+    {
+      name: "Need More Time",
+      content: "Thank you for your email. I'll need some additional time to process this information and respond properly. I'll get back to you by the end of the week."
+    },
+    {
+      name: "Quick Acknowledgment",
+      content: "I've received your email and will review the information. Thank you for keeping me updated."
+    },
+    {
+      name: "Request Clarification",
+      content: "Thank you for your email. Could you please provide more details about [specific point]? This will help me better understand your request."
+    },
+    {
+      name: "Not Interested",
+      content: "Thank you for reaching out. At this time, I'm not interested in pursuing this opportunity further. I appreciate your consideration."
+    }
+  ];
+
+  const [templateMenuAnchor, setTemplateMenuAnchor] = useState<null | HTMLElement>(null);
+  
+  const handleTemplateMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+    setTemplateMenuAnchor(event.currentTarget);
+  };
+  
+  const handleTemplateMenuClose = () => {
+    setTemplateMenuAnchor(null);
+  };
+  
+  const handleTemplateSelect = (content: string) => {
+    if (quickReplyEmail) {
+      handleSendReply(content);
+    }
+    handleTemplateMenuClose();
+  };
+
   const renderEmailItem = (email: EmailMessage, index: number) => (
     <ListItem
       key={email.id}
-      selected={index === selectedIndex}
+      selected={selectedEmailId ? email.id === selectedEmailId : index === selectedIndex}
       onClick={() => {
         setSelectedIndex(index);
         onSelectEmail(email);
@@ -77,12 +261,16 @@ export const EmailList: React.FC<EmailListProps> = ({
         borderRadius: 1,
         transition: preferences.reducedMotion ? 'none' : 'all 0.2s ease',
         cursor: 'pointer',
-        backgroundColor: theme => 
-          preferences.highContrast 
+        backgroundColor: theme => {
+          if (selectedEmailId && email.id === selectedEmailId) {
+            return theme.palette.action.selected;
+          }
+          return preferences.highContrast 
             ? email.is_read 
               ? theme.palette.background.paper
               : theme.palette.primary.light
-            : 'inherit',
+            : 'inherit';
+        },
         '&:hover': {
           backgroundColor: 'action.hover',
         },
@@ -90,6 +278,18 @@ export const EmailList: React.FC<EmailListProps> = ({
           borderLeft: theme => `4px solid ${theme.palette.error.main}`,
         }),
       }}
+      secondaryAction={
+        <Tooltip title="Quick Reply">
+          <IconButton 
+            edge="end" 
+            aria-label="quick reply"
+            onClick={(e) => handleQuickReply(e, email)}
+            size="small"
+          >
+            <ReplyIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      }
     >
       <ListItemIcon>
         <Box display="flex" alignItems="center" gap={1}>
@@ -133,53 +333,147 @@ export const EmailList: React.FC<EmailListProps> = ({
           </Box>
         }
       />
-
-      <Box display="flex" alignItems="center" gap={1}>
-        <Chip
-          size="small"
-          label={email.stress_level}
-          color={
-            email.stress_level === 'HIGH'
-              ? 'error'
-              : email.stress_level === 'MEDIUM'
-              ? 'warning'
-              : 'success'
-          }
-          sx={{
-            fontSize: preferences.fontSize * 0.75,
-          }}
-        />
-        <Typography
-          variant="caption"
-          sx={{
-            fontSize: preferences.fontSize * 0.75,
-          }}
-        >
-          {new Date(email.timestamp).toLocaleTimeString()}
-        </Typography>
-      </Box>
     </ListItem>
   );
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" p={4}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
-    <Paper
-      elevation={preferences.highContrast ? 0 : 1}
-      sx={{
-        p: 2,
-        border: preferences.highContrast ? '2px solid black' : 'none',
+    <Paper 
+      elevation={1}
+      sx={{ 
+        p: 2, 
+        overflowY: 'auto',
+        borderRadius: 2, 
+        height: '70vh',
+        minHeight: 400,
       }}
     >
-      <List>
-        {emails.map((email, index) => renderEmailItem(email, index))}
-      </List>
+      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+        Inbox
+        <Chip 
+          label={`${emails.filter(e => !e.is_read).length} unread`} 
+          size="small" 
+          sx={{ ml: 1 }}
+        />
+      </Typography>
+      
+      {loading ? (
+        <Box display="flex" justifyContent="center" p={4}>
+          <CircularProgress />
+        </Box>
+      ) : emails.length === 0 ? (
+        <Typography variant="body1" align="center" sx={{ p: 4, color: 'text.secondary' }}>
+          No emails found
+        </Typography>
+      ) : (
+        <List>
+          {emails.map(renderEmailItem)}
+        </List>
+      )}
+
+      {/* Quick Reply Menu */}
+      <Menu
+        anchorEl={replyAnchorEl}
+        open={Boolean(replyAnchorEl)}
+        onClose={handleMenuClose}
+      >
+        {isLoadingReplies ? (
+          <MenuItem disabled>
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+            Generating AI replies...
+          </MenuItem>
+        ) : (
+          <>
+            {replyOptions.map((option, index) => (
+              <MenuItem 
+                key={index} 
+                onClick={() => handleSendReply(option)}
+                sx={{ maxWidth: 350 }}
+              >
+                <Box display="flex" alignItems="center">
+                  <AIIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+                  <Typography noWrap>{option.substring(0, 40)}...</Typography>
+                </Box>
+              </MenuItem>
+            ))}
+            <MenuItem onClick={handleTemplateMenuOpen}>
+              <Box display="flex" alignItems="center">
+                <DescriptionIcon fontSize="small" sx={{ mr: 1 }} />
+                <Typography>Use Template...</Typography>
+              </Box>
+            </MenuItem>
+            <MenuItem onClick={handleCustomReply}>
+              <EditIcon fontSize="small" sx={{ mr: 1 }} />
+              Edit reply...
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+
+      {/* Templates Menu */}
+      <Menu
+        anchorEl={templateMenuAnchor}
+        open={Boolean(templateMenuAnchor)}
+        onClose={handleTemplateMenuClose}
+      >
+        {emailTemplates.map((template, index) => (
+          <MenuItem 
+            key={index} 
+            onClick={() => handleTemplateSelect(template.content)}
+          >
+            <Typography variant="body2" fontWeight="bold">{template.name}</Typography>
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {/* Custom Reply Dialog */}
+      <Dialog 
+        open={customReplyOpen} 
+        onClose={() => setCustomReplyOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Edit AI-Generated Reply</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            You can edit the AI-suggested reply below before sending.
+          </DialogContentText>
+          <TextField
+            multiline
+            rows={6}
+            fullWidth
+            value={customReplyText}
+            onChange={(e) => setCustomReplyText(e.target.value)}
+            variant="outlined"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCustomReplyOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={() => handleSendReply(customReplyText)} 
+            variant="contained" 
+            color="primary"
+            startIcon={<SendIcon />}
+            disabled={!customReplyText.trim()}
+          >
+            Send Reply
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert 
+          onClose={handleCloseSnackbar} 
+          severity={snackbar.severity}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Paper>
   );
 }; 

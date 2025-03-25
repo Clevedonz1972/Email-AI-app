@@ -17,6 +17,7 @@ RUN apt-get update \
         curl \
         netcat-traditional \
         libpq-dev \
+        libffi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,10 +29,10 @@ ENV PATH="${POETRY_HOME}/bin:$PATH"
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
-# Install dependencies
-RUN poetry config virtualenvs.create false \
+# Install dependencies and update lock file
+RUN poetry lock \
     && poetry install --no-dev --no-interaction --no-ansi
 
 # Production stage
@@ -48,6 +49,9 @@ RUN apt-get update \
         curl \
         netcat-traditional \
         libpq-dev \
+        redis-tools \
+        gcc \
+        python3-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -58,10 +62,16 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# Install bcrypt explicitly
+RUN pip install bcrypt==4.0.1
+
 # Copy application code
 COPY backend/ backend/
 COPY alembic/ alembic/
 COPY alembic.ini .
+
+# Create logs directory
+RUN mkdir -p /app/logs
 
 # Create entrypoint script
 COPY scripts/entrypoint.sh .
@@ -74,7 +84,7 @@ USER appuser
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/api/health/ || exit 1
 
 # Expose ports
 EXPOSE 8000 5555

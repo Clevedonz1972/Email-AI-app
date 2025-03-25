@@ -35,7 +35,7 @@ class DetailedFeedback(BaseModel):
     feedback = Column(String, nullable=False)
     rating = Column(Float, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    metadata = Column(JSON, nullable=True)  # For storing additional context
+    feedback_metadata = Column(JSON, nullable=True)  # For storing additional context
 
     # Relationships
     user = relationship("User", back_populates="detailed_feedback")
@@ -80,7 +80,4 @@ class AccessibilityFeedback(BaseModel):
     issues_reported = Column(JSON, nullable=True)
     suggestions = Column(String, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    resolution_status = Column(String, nullable=True)
-
-    # Relationships
-    user = relationship("User", back_populates="accessibility_feedback") 
+    resolution_status = Column(String, nullable=True) 

@@ -13,16 +13,16 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, ge=1, le=60)
     OPENAI_API_KEY: str
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost", "http://frontend:3000", "http://frontend", "http://127.0.0.1:3000"]
     TESTING: bool = False
     LOG_LEVEL: str = "INFO"
     FRONTEND_URL: str = Field(default="http://localhost:3000")
 
     # Redis settings
-    REDIS_HOST: str = Field(default="localhost")
+    REDIS_HOST: str = Field(default="redis")
     REDIS_PORT: int = Field(default=6379)
-    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/0")
+    CELERY_BROKER_URL: str = Field(default="redis://redis:6379/0")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://redis:6379/0")
 
     # Email settings
     MAIL_USERNAME: str = Field(default="")

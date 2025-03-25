@@ -25,9 +25,19 @@ export const Login: React.FC = () => {
   const message = location.state?.message;
   const severity = location.state?.severity || 'info';
 
+  const validateEmail = (email: string): boolean => {
+    return email.includes('@') && email.includes('.');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -83,11 +93,14 @@ export const Login: React.FC = () => {
           <TextField
             fullWidth
             label="Email"
-            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             margin="normal"
             required
+            inputProps={{
+              inputMode: 'email',
+              pattern: '[^@\\s]+@[^@\\s]+\\.[^@\\s]+'
+            }}
             autoComplete="email"
             autoFocus
           />

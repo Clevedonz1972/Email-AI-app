@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from ..models.email import StressLevel, Priority
 
@@ -54,18 +54,18 @@ class EmailReplyConfirmation(BaseModel):
 
 class EmailReplyResponse(BaseModel):
     content: str
-    analysis: Dict[str, any]
+    analysis: Dict[str, Any]
     suggestions: Optional[List[str]]
     simplified_version: Optional[str]
     preview_token: Optional[str]
-    stress_analysis: Optional[Dict[str, any]]
+    stress_analysis: Optional[Dict[str, Any]]
     accessibility_notes: Optional[List[str]]
 
 
 class EmailReplyPreview(BaseModel):
     original_email_id: int
     content: str
-    analysis: Dict[str, any]
+    analysis: Dict[str, Any]
     preview_token: str
     warnings: Optional[List[str]]
     accessibility_suggestions: Optional[List[str]]

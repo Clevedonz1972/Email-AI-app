@@ -138,20 +138,32 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { preferences } = useAccessibility();
 
   const theme = React.useMemo(() => {
-    // Select the appropriate color palette based on preferences
+    // Determine the current mode - dark or light
+    const mode = preferences.colorScheme === 'system' 
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      : preferences.colorScheme;
+    
+    // Log the mode for debugging
+    console.log('ThemeProvider mode:', mode);
+    
+    // Select the appropriate color palette based on preferences and mode
     let palette = preferences.highContrast
       ? highContrastPalette
       : preferences.colorBlindMode
       ? colorBlindPalette
-      : lightPalette;
+      : mode === 'dark' ? darkPalette : lightPalette;
 
     return createTheme({
       palette: {
-        mode: 'light',
+        mode: mode as 'light' | 'dark',
         ...palette,
         text: {
-          primary: preferences.highContrast ? '#000000' : '#212121',
-          secondary: preferences.highContrast ? '#000000' : '#757575',
+          primary: preferences.highContrast 
+            ? '#000000' 
+            : mode === 'dark' ? '#ffffff' : '#212121',
+          secondary: preferences.highContrast 
+            ? '#000000' 
+            : mode === 'dark' ? '#bbbbbb' : '#757575',
         },
       },
       typography: {

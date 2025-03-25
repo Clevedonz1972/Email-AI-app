@@ -28,7 +28,6 @@ class User(BaseModel):
     quick_feedback = relationship("QuickFeedback", back_populates="user")
     detailed_feedback = relationship("DetailedFeedback", back_populates="user")
     feedback_analytics = relationship("FeedbackAnalytics", back_populates="user")
-    accessibility_feedback = relationship("AccessibilityFeedback", back_populates="user")
     # Remove templates relationship for now
 
     # Add relationships for testing

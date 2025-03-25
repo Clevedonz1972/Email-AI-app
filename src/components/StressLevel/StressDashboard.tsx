@@ -7,8 +7,12 @@ import {
   CircularProgress,
   useTheme,
   Fade,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+import { Settings as SettingsIcon } from '@mui/icons-material';
 import { useAccessibility } from '@/contexts/AccessibilityContext';
+import { useNavigate } from 'react-router-dom';
 import type { EmailMessage } from '@/types/email';
 
 interface StressDashboardProps {
@@ -18,6 +22,7 @@ interface StressDashboardProps {
 export const StressDashboard: React.FC<StressDashboardProps> = ({ emails }) => {
   const theme = useTheme();
   const { preferences } = useAccessibility();
+  const navigate = useNavigate();
 
   const stressStats = {
     high: emails.filter(e => e.stress_level === 'HIGH').length,
@@ -41,19 +46,29 @@ export const StressDashboard: React.FC<StressDashboardProps> = ({ emails }) => {
         }
       }}
     >
-      <Typography
-        variant="h4"
-        gutterBottom
-        sx={{
-          fontSize: `${preferences.fontSize * 1.5}rem`,
-          lineHeight: 1.5,
-          mb: 4,
-          textAlign: 'center',
-        }}
-        role="text"
-      >
-        Stress Monitoring Dashboard
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 4 }}>
+        <Typography
+          variant="h4"
+          sx={{
+            fontSize: `${preferences.fontSize * 1.5}rem`,
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}
+          role="text"
+        >
+          Stress Monitoring Dashboard
+        </Typography>
+        <Tooltip title="Settings">
+          <IconButton 
+            onClick={() => navigate('/settings')}
+            size="small"
+            aria-label="Settings"
+            sx={{ ml: 2 }}
+          >
+            <SettingsIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
 
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>

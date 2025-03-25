@@ -23,9 +23,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (credentials: LoginCredentials) => {
     try {
-      const response = await AuthService.login(credentials);
-      TokenService.setTokens(response.tokens);
-      setUser(response.user);
+      const response = await AuthService.login(credentials.email, credentials.password);
+      TokenService.setTokens({
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token || response.access_token,
+        expiresIn: 3600
+      });
+      const user: User = {
+        id: '1',
+        email: credentials.email
+      };
+      setUser(user);
       setIsAuthenticated(true);
       logger.info('User logged in successfully', { email: credentials.email });
     } catch (error) {

@@ -11,9 +11,10 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from backend.routes import auth_router, email_router, health_router, preferences_router
 from backend.routes.analytics import router as analytics_router
+from backend.routes.test_calendar import router as test_calendar_router
 from backend.config import settings
 from backend.utils.error_handlers import setup_error_handlers
-from backend.utils.cache import init_cache
+from backend.utils.cache import cache_service
 from backend.tasks.worker import celery as celery_app
 from backend.database import Base, engine
 from backend.utils.logger import setup_logger
@@ -24,9 +25,6 @@ sentry_sdk.init(
     environment=settings.ENVIRONMENT,
     traces_sample_rate=1.0,
 )
-
-# Create database tables
-Base.metadata.create_all(bind=engine)
 
 # Initialize rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -40,6 +38,9 @@ app = FastAPI(
     redoc_url=None,  # Disable default redoc
 )
 
+# Initialize Prometheus instrumentation
+instrumentator = Instrumentator().instrument(app)
+
 # Add rate limiter to the app
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -47,7 +48,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS middleware configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -103,7 +104,6 @@ async def custom_redoc_html():
 # Prometheus metrics
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
-Instrumentator().instrument(app).expose(app)
 
 # Root endpoint with rate limiting
 @app.get("/")
@@ -117,7 +117,7 @@ async def root(request: Request):
     """
     return {"message": "Welcome to Email AI App API"}
 
-# Include routers with their own rate limits
+# Include routers with consistent /api prefix
 app.include_router(
     auth_router,
     prefix="/api/auth",
@@ -133,25 +133,28 @@ app.include_router(
 )
 
 app.include_router(
-    health_router,
-    prefix="/api",
-    tags=["health"],
-)
-
-app.include_router(
     preferences_router,
     prefix="/api/preferences",
     tags=["preferences"],
     responses={401: {"description": "Unauthorized"}},
 )
 
+app.include_router(
+    health_router,
+    prefix="/api/health",
+    tags=["health"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
 app.include_router(analytics_router, prefix="/api")
 
-# Include routers
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
-app.include_router(email_router, prefix="/emails", tags=["emails"])
-app.include_router(health_router, prefix="/health", tags=["health"])
-app.include_router(preferences_router, prefix="/preferences", tags=["preferences"])
+# Include test calendar router
+app.include_router(
+    test_calendar_router,
+    prefix="/api",
+    tags=["test-calendar"],
+    responses={401: {"description": "Unauthorized"}},
+)
 
 # Initialize logger
 logger = setup_logger()
@@ -162,11 +165,11 @@ async def startup_event():
     """Initialize services on application startup"""
     try:
         # Initialize Redis cache
-        await init_cache()
+        cache_service.init_cache()
         logger.info("Cache initialized successfully")
         
         # Initialize Prometheus metrics
-        Instrumentator().instrument(app).expose(app)
+        instrumentator.expose(app)
         
         # Initialize Celery tasks
         celery_app.conf.update(
@@ -175,10 +178,6 @@ async def startup_event():
             worker_max_tasks_per_child=50,
             broker_connection_retry_on_startup=True
         )
-
-        # Ensure database tables exist
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
 
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
@@ -190,6 +189,5 @@ async def shutdown_event():
     """Clean up resources on application shutdown"""
     logger.info("Application shutting down")
     # Close Redis connection
-    from backend.utils.cache import cache_service
     if cache_service.redis:
-        await cache_service.redis.close()
+        cache_service.redis.close()

@@ -7,7 +7,8 @@ import os
 from sqlalchemy.pool import StaticPool
 
 # Use test database if in testing mode
-if os.getenv("TESTING"):
+testing = os.getenv("TESTING", "").lower() in ("true", "1", "yes")
+if testing:
     DATABASE_URL = "sqlite:///:memory:"
     engine = create_engine(
         DATABASE_URL,
@@ -20,8 +21,6 @@ else:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base = declarative_base()
-
 def get_db():
     """Get database session"""
     db = SessionLocal()
@@ -32,6 +31,3 @@ def get_db():
 
 # Import all models to ensure they are included in Base metadata
 from .models import User, Email, Category, EmailAnalysis, EmailMessage
-
-# Create all tables
-Base.metadata.create_all(bind=engine)

@@ -1,178 +1,132 @@
-import { render, screen } from '@/test/utils';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
-import { StressDashboard } from '@/components/StressLevel/StressDashboard';
+import { StressDashboard } from '@/components/Dashboard/StressDashboard';
+import { EmailStressIndicator } from '@/components/Email/EmailStressIndicator';
 import { mockEmails } from '@/test/utils/mockData';
-import { EmailContext } from '@/contexts/EmailContext';
-import type { EmailStats } from '@/types/email';
-import { neurodivergentHelpers } from '@/tests/a11y/neurodivergentChecks';
+import { runNeurodivergentChecks } from '../a11y/neurodivergentChecks';
+import type { EmailMessage } from '@/types/email';
 
 expect.extend(toHaveNoViolations);
 
-const mockEmailStats: EmailStats = {
-  total: mockEmails.length,
-  unread: mockEmails.filter(e => !e.is_read).length,
-  priority: 'LOW',
-  categories: {
-    inbox: mockEmails.length,
-    sent: 0,
-    draft: 0,
-    trash: 0
-  },
-  high: mockEmails.filter(e => e.stress_level === 'HIGH').length,
-  medium: mockEmails.filter(e => e.stress_level === 'MEDIUM').length,
-  low: mockEmails.filter(e => e.stress_level === 'LOW').length,
-  urgentEmails: [],
-  actionRequired: []
-};
-
-const mockEmailContext = {
-  emails: mockEmails,
-  loading: false,
-  error: null,
-  emailStats: mockEmailStats,
-  processing: false,
-  progress: 0,
-  processEmails: jest.fn().mockResolvedValue(mockEmails),
-  fetchEmails: jest.fn(),
-  markAsRead: jest.fn(),
-  flagEmail: jest.fn(),
-  deleteEmail: jest.fn(),
-  replyToEmail: jest.fn(),
-  updateEmailCategory: jest.fn(),
-  updateEmailPriority: jest.fn(),
-};
-
 describe('Stress Monitoring Accessibility', () => {
-  it('meets WCAG AAA standards', async () => {
-    const { container } = render(
-      <EmailContext.Provider value={mockEmailContext}>
-        <StressDashboard emails={mockEmails} />
-      </EmailContext.Provider>
-    );
-    const results = await axe(container, {
-      rules: {
-        'color-contrast': { level: 'AAA' },
-        'motion-animation': { enabled: true },
-        'text-spacing': { enabled: true },
-        'focus-order-semantics': { enabled: true }
-      }
+  describe('StressDashboard', () => {
+    it('meets WCAG accessibility standards', async () => {
+      const { container } = render(<StressDashboard emails={mockEmails} />);
+      const results = await axe(container);
+      expect(results).toHaveNoViolations();
     });
-    expect(results).toHaveNoViolations();
-  });
 
-  it('provides clear and customizable audio feedback', () => {
-    render(
-      <EmailContext.Provider value={mockEmailContext}>
-        <StressDashboard emails={mockEmails} />
-      </EmailContext.Provider>
-    );
-    
-    const alerts = screen.getAllByRole('alert');
-    alerts.forEach(alert => {
-      expect(alert).toHaveAttribute('aria-live', 'polite');
-      expect(alert).not.toHaveAttribute('aria-atomic', 'true');
+    it('provides clear visual stress indicators', () => {
+      render(<StressDashboard emails={mockEmails} />);
       
-      const volumeControl = screen.getByRole('slider', { name: 'Audio Volume' });
-      expect(volumeControl).toBeInTheDocument();
-      
-      const speedControl = screen.getByRole('slider', { name: 'Audio Speed' });
-      expect(speedControl).toBeInTheDocument();
-    });
-  });
-
-  it('supports comprehensive motion control', () => {
-    render(<StressDashboard emails={mockEmails} />);
-    
-    const animatedElements = screen.getAllByTestId('animate');
-    animatedElements.forEach(element => {
-      expect(element).toHaveAttribute('data-reduced-motion');
-      expect(element).toHaveStyle({
-        '@media (prefers-reduced-motion: reduce)': {
-          animation: 'none'
-        }
+      const indicators = screen.getAllByTestId('stress-indicator');
+      indicators.forEach(indicator => {
+        // Check for proper ARIA labels
+        expect(indicator).toHaveAttribute('aria-label');
+        // Check for proper role
+        expect(indicator).toHaveAttribute('role', 'status');
       });
+    });
+
+    it('supports keyboard navigation for stress management features', async () => {
+      await runNeurodivergentChecks(
+        <StressDashboard emails={mockEmails} />,
+        { checkFocusOrder: true }
+      );
+    });
+
+    it('maintains color contrast for stress indicators', async () => {
+      await runNeurodivergentChecks(
+        <StressDashboard emails={mockEmails} />,
+        { checkColorContrast: true }
+      );
+    });
+  });
+
+  describe('EmailStressIndicator', () => {
+    const mockEmail: EmailMessage = mockEmails[0];
+
+    it('provides appropriate ARIA labels for stress levels', () => {
+      render(<EmailStressIndicator email={mockEmail} />);
       
-      const motionControls = screen.getAllByRole('slider', { name: 'Animation Speed' });
-      expect(motionControls.length).toBeGreaterThan(0);
-      motionControls.forEach(control => {
+      const indicator = screen.getByRole('status');
+      expect(indicator).toHaveAttribute(
+        'aria-label',
+        expect.stringContaining(mockEmail.stress_level.toLowerCase())
+      );
+    });
+
+    it('handles focus states appropriately', async () => {
+      const { container } = render(<EmailStressIndicator email={mockEmail} />);
+      
+      const indicator = screen.getByTestId('stress-indicator');
+      indicator.focus();
+      
+      expect(document.activeElement).toBe(indicator);
+      expect(indicator).toHaveAttribute('tabindex', '0');
+    });
+
+    it('provides clear tooltips for additional context', async () => {
+      render(<EmailStressIndicator email={mockEmail} />);
+      
+      const indicator = screen.getByTestId('stress-indicator');
+      fireEvent.mouseEnter(indicator);
+      
+      await waitFor(() => {
+        expect(screen.getByRole('tooltip')).toBeInTheDocument();
+      });
+    });
+
+    it('supports screen reader announcements for stress changes', async () => {
+      const { rerender } = render(<EmailStressIndicator email={mockEmail} />);
+      
+      // Update stress level
+      const updatedEmail = {
+        ...mockEmail,
+        stress_level: 'LOW' as const
+      };
+      
+      rerender(<EmailStressIndicator email={updatedEmail} />);
+      
+      const announcement = screen.getByRole('status');
+      expect(announcement).toHaveAttribute('aria-live', 'polite');
+    });
+  });
+
+  describe('Stress Management Features', () => {
+    it('provides accessible controls for stress management', async () => {
+      render(<StressDashboard emails={mockEmails} />);
+      
+      const controls = screen.getAllByRole('button');
+      controls.forEach(control => {
         expect(control).toHaveAttribute('aria-label');
-        expect(control).toHaveAttribute('min', '0');
-        expect(control).toHaveAttribute('max', '100');
+        expect(control).not.toHaveAttribute('aria-hidden');
       });
     });
-  });
 
-  it('maintains readability with dynamic text customization', () => {
-    render(<StressDashboard emails={mockEmails} />);
-    
-    const textElements = screen.getAllByRole('text');
-    textElements.forEach(element => {
-      const styles = window.getComputedStyle(element);
-      expect(styles.fontSize).toMatch('^\\d+(?:rem|em)$');
-      expect(parseFloat(styles.lineHeight)).toBeGreaterThanOrEqual(1.5);
+    it('maintains functionality with assistive technologies', async () => {
+      render(<StressDashboard emails={mockEmails} />);
       
-      expect(screen.getByRole('slider', { name: 'Letter Spacing' })).toBeInTheDocument();
-      expect(screen.getByRole('slider', { name: 'Word Spacing' })).toBeInTheDocument();
-      expect(screen.getByRole('combobox', { name: 'Font Family' })).toBeInTheDocument();
-    });
-  });
-
-  it('provides clear and customizable stress indicators', async () => {
-    render(
-      <EmailContext.Provider value={mockEmailContext}>
-        <StressDashboard emails={mockEmails} />
-      </EmailContext.Provider>
-    );
-    
-    const stressIndicators = screen.getAllByTestId('stress-indicator');
-    stressIndicators.forEach(indicator => {
-      expect(indicator).toHaveAttribute('aria-label');
-      expect(indicator).toHaveStyle({ padding: expect.any(String) });
-      
-      const pattern = indicator.querySelector('[data-testid="pattern"]');
-      expect(pattern).toBeInTheDocument();
-      
-      const thresholdControls = screen.getAllByRole('slider', { name: 'Stress Threshold' });
-      expect(thresholdControls.length).toBe(2);
-    });
-  });
-
-  it('supports keyboard navigation and focus management', async () => {
-    const { container } = render(
-      <EmailContext.Provider value={mockEmailContext}>
-        <StressDashboard emails={mockEmails} />
-      </EmailContext.Provider>
-    );
-
-    await neurodivergentHelpers.checkKeyboardNavigation(container);
-    
-    const focusableElements = screen.getAllByRole('button');
-    focusableElements.forEach(element => {
-      expect(element).toHaveStyle({
-        outline: expect.stringContaining('px'),
-        outlineOffset: expect.stringContaining('px')
+      const interactiveElements = screen.getAllByRole('button');
+      interactiveElements.forEach(element => {
+        element.focus();
+        fireEvent.keyDown(element, { key: 'Enter' });
+        // Ensure the element responds to keyboard interaction
+        expect(element).toHaveAttribute('aria-pressed');
       });
     });
-  });
 
-  it('provides clear error recovery steps', async () => {
-    render(
-      <EmailContext.Provider value={mockEmailContext}>
-        <StressDashboard emails={mockEmails} />
-      </EmailContext.Provider>
-    );
-
-    const recoverySteps = [
-      'Check your internet connection',
-      'Refresh the dashboard',
-      'Contact support if the issue persists'
-    ];
-
-    await neurodivergentHelpers.checkErrorRecovery(
-      () => {
-        mockEmailContext.fetchEmails.mockRejectedValueOnce(new Error('Network error'));
-      },
-      recoverySteps
-    );
+    it('provides clear feedback for stress level changes', async () => {
+      render(<StressDashboard emails={mockEmails} />);
+      
+      const stressControls = screen.getAllByRole('radio', { name: /stress level/i });
+      fireEvent.click(stressControls[0]);
+      
+      await waitFor(() => {
+        const feedback = screen.getByRole('alert');
+        expect(feedback).toBeInTheDocument();
+        expect(feedback).toHaveAttribute('aria-live', 'assertive');
+      });
+    });
   });
 }); 

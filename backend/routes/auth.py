@@ -139,10 +139,10 @@ async def login(user: UserLogin, response: Response, db: Session = Depends(get_d
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token(
-        data={"sub": db_user.email},
+        data={"sub": str(db_user.id)},
         expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    refresh_token = create_refresh_token(data={"sub": db_user.email})
+    refresh_token = create_refresh_token(data={"sub": str(db_user.id)})
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,

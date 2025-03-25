@@ -5,14 +5,13 @@ interface ApiOptions extends RequestInit {
 }
 
 class ApiClient {
-  private static readonly BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+  static readonly BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
   static async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     const { requiresAuth = true, ...fetchOptions } = options;
 
     if (requiresAuth) {
-      await TokenService.refreshTokenIfNeeded();
-      const token = TokenService.getAccessToken();
+      const token = localStorage.getItem('access_token');
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -40,43 +39,29 @@ class ApiClient {
   }
 
   static async get<T>(endpoint: string): Promise<T> {
-    const response = await fetch(`${this.BASE_URL}${endpoint}`);
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
+    return this.request<T>(endpoint, { method: 'GET' });
   }
 
   static async post<T>(endpoint: string, data?: unknown): Promise<T> {
-    const response = await fetch(`${this.BASE_URL}${endpoint}`, {
+    return this.request<T>(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
   }
 
   static async put<T>(endpoint: string, data?: unknown): Promise<T> {
-    const response = await fetch(`${this.BASE_URL}${endpoint}`, {
+    return this.request<T>(endpoint, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('Network response was not ok');
-    return response.json();
   }
 
   static async delete(endpoint: string): Promise<void> {
-    const response = await fetch(`${this.BASE_URL}${endpoint}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Network response was not ok');
+    await this.request(endpoint, { method: 'DELETE' });
   }
 
   // Add other methods (PUT, DELETE, etc.) as needed
 }
 
-export { ApiClient }; 
+export { ApiClient };
+export type { ApiOptions }; 

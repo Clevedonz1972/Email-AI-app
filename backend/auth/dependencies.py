@@ -20,19 +20,19 @@ def decode_jwt(token: str):
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
-        email: str = payload.get("sub")
-        if email is None:
+        user_id: str = payload.get("sub")
+        if user_id is None:
             raise credentials_exception
-        return email
-    except JWTError:
+        return int(user_id)  # Convert string ID back to integer
+    except (JWTError, ValueError):
         raise credentials_exception
 
 
 def get_current_user(
     token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)
 ) -> User:
-    email = decode_jwt(token)
-    user = db.query(User).filter(User.email == email).first()
+    user_id = decode_jwt(token)
+    user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise credentials_exception
     return user

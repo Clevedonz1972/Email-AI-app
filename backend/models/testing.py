@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from backend.database import Base
+from .base import Base
 
 class TestScenario(Base):
     """Model for tracking test scenario completion"""
@@ -9,7 +9,7 @@ class TestScenario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"))
-    scenario_id = Column(String, index=True)
+    scenario_id = Column(String, primary_key=True, unique=True, index=True)
     completed = Column(Boolean, default=False)
     completion_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

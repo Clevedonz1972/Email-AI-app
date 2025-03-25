@@ -1,11 +1,30 @@
-import { ApiClient } from './apiClient';
+import { ApiClient } from '../apiClient';
 import type { LoginCredentials, RegisterCredentials, AuthResponse } from '@/types/auth';
+import TokenService from '../tokenService';
+
+interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  refresh_token?: string;
+}
 
 export class AuthService {
   private static readonly BASE_PATH = '/auth';
 
-  static async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    return ApiClient.post<AuthResponse>(`${this.BASE_PATH}/login`, credentials);
+  static async login(email: string, password: string): Promise<LoginResponse> {
+    const response = await ApiClient.request<LoginResponse>(`${this.BASE_PATH}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    if (response.access_token) {
+      localStorage.setItem('access_token', response.access_token);
+    }
+    
+    return response;
   }
 
   static async register(credentials: RegisterCredentials): Promise<AuthResponse> {
@@ -34,6 +53,7 @@ export class AuthService {
   }
 
   static async logout(): Promise<void> {
+    localStorage.removeItem('access_token');
     await ApiClient.post(`${this.BASE_PATH}/logout`);
   }
 } 

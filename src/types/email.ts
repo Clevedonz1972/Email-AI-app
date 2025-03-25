@@ -61,6 +61,6 @@ export interface EmailAnalysis {
   summary: string;
   stress_level: StressLevel;
   priority: Priority;
-  action_items: string[];
+  action_items: ActionItem[];
   sentiment_score: number;
 } 

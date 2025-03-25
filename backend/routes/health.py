@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from backend.database import get_db
 from backend.utils.cache import cache_service
-from backend.worker import celery
+from backend.tasks.worker import celery as celery_app
 
 router = APIRouter()
 
-@router.get("/health")
+@router.get("/")
 async def health_check(db: Session = Depends(get_db)):
     """
     Comprehensive health check endpoint that checks all services:
@@ -27,7 +28,7 @@ async def health_check(db: Session = Depends(get_db)):
     
     try:
         # Check database
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         health_status["components"]["database"] = "healthy"
     except Exception as e:
         health_status["components"]["database"] = f"unhealthy: {str(e)}"
@@ -35,7 +36,7 @@ async def health_check(db: Session = Depends(get_db)):
 
     # Check Redis
     try:
-        if cache_service.redis and await cache_service.redis.ping():
+        if cache_service.redis and cache_service.redis.ping():
             health_status["components"]["redis"] = "healthy"
     except Exception as e:
         health_status["components"]["redis"] = f"unhealthy: {str(e)}"
@@ -43,9 +44,13 @@ async def health_check(db: Session = Depends(get_db)):
 
     # Check Celery
     try:
-        celery_inspect = celery.control.inspect()
-        if celery_inspect.active():
+        # Check if Celery workers are responding
+        inspect = celery_app.control.inspect()
+        if inspect.ping():
             health_status["components"]["celery"] = "healthy"
+        else:
+            health_status["components"]["celery"] = "unhealthy: no workers responding"
+            health_status["status"] = "unhealthy"
     except Exception as e:
         health_status["components"]["celery"] = f"unhealthy: {str(e)}"
         health_status["status"] = "unhealthy"

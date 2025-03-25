@@ -60,14 +60,16 @@ export class ApiClient {
     }
   }
 
-  static async post<T>(endpoint: string, data?: unknown): Promise<T> {
+  static async post<T>(endpoint: string, data?: unknown, options: RequestInit = {}): Promise<T> {
     try {
       const response = await this.fetchWithTimeout(`${this.BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...options.headers
         },
-        body: JSON.stringify(data)
+        body: data instanceof URLSearchParams ? data.toString() : JSON.stringify(data),
+        ...options
       });
       return this.handleResponse<T>(response);
     } catch (error) {
