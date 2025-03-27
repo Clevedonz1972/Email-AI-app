@@ -2,7 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { Dashboard } from '../components/Dashboard/Dashboard';
 import { EmailList } from '../components/EmailList/EmailList';
-import { mockSender } from '../test-utils/test-utils';
 import type { EmailMessage } from '../types/email';
 
 describe('Performance', () => {
@@ -16,17 +15,21 @@ describe('Performance', () => {
 
   it('should handle large email lists efficiently', () => {
     const largeEmailList: EmailMessage[] = Array.from({ length: 1000 }, (_, i) => ({
-      id: `${i}`,
+      id: i + 1,
       subject: `Email ${i}`,
       content: `Content ${i}`,
-      sender: mockSender,
+      sender: {
+        email: 'test@example.com',
+        name: 'Test User'
+      },
       preview: `Preview ${i}`,
       timestamp: new Date().toISOString(),
       priority: 'MEDIUM',
       is_read: false,
       category: 'inbox',
       processed: false,
-      stress_level: 'LOW'
+      stress_level: 'LOW',
+      sentiment_score: 0.5
     }));
 
     const start = performance.now();

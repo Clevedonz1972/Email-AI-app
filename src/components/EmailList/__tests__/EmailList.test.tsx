@@ -2,27 +2,28 @@ import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test-utils/test-utils';
 import { EmailList } from '../EmailList';
 import { mockEmails } from '@/test-utils/test-utils';
-import type { EmailMessage, EmailSender } from '@/types/email';
+import type { EmailMessage } from '@/types/email';
 
 describe('EmailList', () => {
-  const mockSender: EmailSender = {
+  const mockSender = {
     email: 'test@example.com',
     name: 'Test User'
   };
 
   const mockEmails: EmailMessage[] = [
     {
-      id: '1',
+      id: 1,
       subject: 'Test',
       content: 'Test content',
-      sender: mockSender,  // Using proper EmailSender type
+      sender: mockSender,
       preview: 'Test preview',
       timestamp: '2024-02-20T12:00:00Z',
       priority: 'HIGH',
       is_read: false,
       category: 'inbox',
       processed: true,
-      stress_level: 'HIGH'
+      stress_level: 'HIGH',
+      sentiment_score: 0.5
     }
   ];
 
@@ -33,7 +34,7 @@ describe('EmailList', () => {
 
   it('renders empty state correctly', () => {
     render(<EmailList emails={[]} />);
-    expect(screen.getByText(/no emails to display/i)).toBeInTheDocument();
+    expect(screen.getByText('No Emails to Display')).toBeInTheDocument();
   });
 
   it('renders emails correctly', () => {
@@ -42,7 +43,9 @@ describe('EmailList', () => {
     mockEmails.forEach(email => {
       expect(screen.getByText(email.subject)).toBeInTheDocument();
       expect(screen.getByText(email.preview)).toBeInTheDocument();
-      expect(screen.getByText(new RegExp(email.sender.name))).toBeInTheDocument();
+      if (email.sender.name) {
+        expect(screen.getByText(email.sender.name)).toBeInTheDocument();
+      }
     });
   });
 
@@ -59,8 +62,8 @@ describe('EmailList', () => {
     );
 
     const firstEmail = mockEmails[0];
-    const markReadButton = screen.getAllByLabelText(/mark as read/i)[0];
-    const flagButton = screen.getAllByLabelText(/flag as urgent/i)[0];
+    const markReadButton = screen.getAllByLabelText('Mark as Read')[0];
+    const flagButton = screen.getAllByLabelText('Flag as Urgent')[0];
 
     fireEvent.click(markReadButton);
     expect(onMarkRead).toHaveBeenCalledWith(firstEmail.id);
@@ -71,7 +74,7 @@ describe('EmailList', () => {
 });
 
 const mockEmail: EmailMessage = {
-  id: '1',
+  id: 1,
   sender: {
     name: 'Test User',
     email: 'test@example.com'
@@ -84,5 +87,6 @@ const mockEmail: EmailMessage = {
   category: 'inbox',
   content: 'Test content',
   processed: false,
-  stress_level: 'LOW'
+  stress_level: 'LOW',
+  sentiment_score: 0.5
 }; 

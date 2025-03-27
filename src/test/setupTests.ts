@@ -16,10 +16,22 @@ configure({ asyncUtilTimeout: 5000 });
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
+  root: Element | Document | null = null;
+  rootMargin: string = '0px';
+  thresholds: number[] = [0];
+
+  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+    if (options) {
+      this.root = options.root || null;
+      this.rootMargin = options.rootMargin || '0px';
+      this.thresholds = Array.isArray(options.threshold) ? options.threshold : [options.threshold || 0];
+    }
+  }
+
   observe() { return null; }
   unobserve() { return null; }
   disconnect() { return null; }
+  takeRecords(): IntersectionObserverEntry[] { return []; }
 };
 
 // Mock window.matchMedia

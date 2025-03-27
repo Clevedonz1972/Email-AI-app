@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
+
 class Category(BaseModel):
     __tablename__ = "categories"
 
@@ -11,7 +12,7 @@ class Category(BaseModel):
     color = Column(String(7))  # Hex color code
     icon = Column(String(50))
     rules = Column(JSON)  # Rules for auto-categorization
-    
+
     # Relationships
     user = relationship("User", back_populates="categories")
-    emails = relationship("Email", back_populates="category") 
+    emails = relationship("Email", back_populates="category")

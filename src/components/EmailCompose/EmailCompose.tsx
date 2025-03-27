@@ -38,6 +38,7 @@ export const EmailCompose: React.FC<EmailComposeProps> = ({
       priority: 'MEDIUM',
       category: 'sent',
       stress_level: 'LOW',
+      sentiment_score: 0.5,
     });
     onClose();
   };

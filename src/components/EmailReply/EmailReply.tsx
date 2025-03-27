@@ -27,7 +27,7 @@ export const EmailReply: React.FC<EmailReplyProps> = ({
 }) => {
   const [replyContent, setReplyContent] = useState('');
   const [sending, setSending] = useState(false);
-  const { generateReply, loading, error } = useAI();
+  const { generateReply, isLoading, userErrorMessage } = useAI();
 
   const handleGenerateReply = async () => {
     const suggestion = await generateReply(originalEmail.content);
@@ -52,9 +52,9 @@ export const EmailReply: React.FC<EmailReplyProps> = ({
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Reply to: {originalEmail.subject}</DialogTitle>
       <DialogContent>
-        {error && (
+        {userErrorMessage && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
+            {userErrorMessage}
           </Alert>
         )}
         <TextField
@@ -71,8 +71,8 @@ export const EmailReply: React.FC<EmailReplyProps> = ({
       <DialogActions>
         <Button 
           onClick={handleGenerateReply}
-          disabled={loading}
-          startIcon={loading && <CircularProgress size={20} />}
+          disabled={isLoading}
+          startIcon={isLoading && <CircularProgress size={20} />}
         >
           Generate Reply
         </Button>

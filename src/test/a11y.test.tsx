@@ -4,7 +4,6 @@ import { axe, toHaveNoViolations } from 'jest-axe';
 import { Login } from '../components/Auth/Login';
 import { Dashboard } from '../components/Dashboard/Dashboard';
 import { EmailReply } from '../components/EmailReply/EmailReply';
-import { mockSender } from '../test-utils/test-utils';
 import type { EmailMessage } from '../types/email';
 
 expect.extend(toHaveNoViolations);
@@ -24,17 +23,21 @@ describe('Accessibility', () => {
 
   it('Email reply dialog should have no accessibility violations', async () => {
     const mockEmail: EmailMessage = {
-      id: '1',
+      id: 1,
       subject: 'Test',
       content: 'Test content',
-      sender: mockSender,
+      sender: {
+        email: 'test@example.com',
+        name: 'Test User'
+      },
       preview: 'Test preview',
       timestamp: new Date().toISOString(),
       priority: 'MEDIUM',
       is_read: false,
       category: 'inbox',
       processed: false,
-      stress_level: 'LOW'
+      stress_level: 'LOW',
+      sentiment_score: 0.5
     };
 
     const { container } = render(

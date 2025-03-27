@@ -14,20 +14,28 @@ export interface ActionItem {
 }
 
 export interface EmailMessage {
-  id: string;
-  sender: EmailSender;
+  id: number;
   subject: string;
   content: string;
   preview: string;
+  sender: {
+    email: string;
+    name: string;
+  };
   timestamp: string;
   priority: Priority;
+  stress_level: StressLevel;
   is_read: boolean;
   category: Category;
   processed: boolean;
-  stress_level: StressLevel;
-  summary?: string;
   action_required?: boolean;
-  action_items?: ActionItem[];
+  summary?: string;
+  action_items?: Array<{
+    id: string;
+    description: string;
+    completed: boolean;
+  }>;
+  sentiment_score: number;
 }
 
 export interface EmailSummary {
@@ -47,4 +55,12 @@ export interface EmailStats {
   low: number;
   urgentEmails: EmailMessage[];
   actionRequired: EmailMessage[];
+}
+
+export interface EmailAnalysis {
+  summary: string;
+  stress_level: StressLevel;
+  priority: Priority;
+  action_items: ActionItem[];
+  sentiment_score: number;
 } 

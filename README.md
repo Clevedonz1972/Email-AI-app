@@ -1,89 +1,120 @@
 # Email AI Assistant
 
-A neurodiversity-friendly email management system with AI assistance.
+A modern web application that combines email management with AI-powered assistance, calendar integration, and voice commands.
 
 ## Features
 
-- 🧠 AI-powered email analysis and suggestions
-- 📊 Stress level monitoring and management
-- 🎯 Smart email categorization
-- ♿ Accessibility-first design
-- 🔒 Enterprise-grade security
+- 📧 Email Management
+  - View and manage emails
+  - AI-powered email composition
+  - Smart email organization
 
-## Security Features
+- 📅 Calendar Integration
+  - Event management
+  - Meeting scheduling
+  - Calendar sync
 
-### Authentication
-- JWT-based authentication with access and refresh tokens
-- Secure password hashing using bcrypt
-- Rate limiting to prevent brute force attacks
-- CORS protection
-- XSS prevention
-- CSRF protection
+- 🎙️ Voice Assistant
+  - Voice commands for email and calendar
+  - Natural language processing
+  - Hands-free operation
 
-### Environment Variables
+- 🔒 Authentication
+  - Secure user authentication
+  - Protected routes
+  - User settings management
 
-Create a `.env` file in the root directory:
+## Tech Stack
 
-```env
-# Backend
-DATABASE_URL=postgresql://user:password@localhost:5432/email_ai_db
-JWT_SECRET_KEY=your-secret-key
-OPENAI_API_KEY=your-openai-api-key
+- Frontend:
+  - Next.js 14
+  - TypeScript
+  - Material-UI
+  - FullCalendar
+  - Axios
 
-# Frontend
-REACT_APP_API_URL=http://localhost:8000
-REACT_APP_TOKEN_KEY=email_ai_token
+- Backend:
+  - Node.js
+  - Express
+  - MongoDB
+  - JWT Authentication
+
+## Getting Started
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/email-ai-app.git
+cd email-ai-app
 ```
 
-### Token Management
-
-The system uses two types of tokens:
-1. Access Token (30-minute expiry)
-2. Refresh Token (7-day expiry)
-
-Frontend storage:
-- Access token: Memory (Redux store)
-- Refresh token: HTTP-only secure cookie
-
-## Setup
-
-### Backend Setup
+2. Install dependencies:
 ```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-.\venv\Scripts\activate   # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run migrations
-alembic upgrade head
-
-# Start server
-uvicorn main:app --reload
-```
-
-### Frontend Setup
-```bash
-# Install dependencies
+# Install frontend dependencies
+cd frontend
 npm install
 
-# Start development server
-npm start
-
-# Run tests
-npm test
+# Install backend dependencies
+cd ../backend
+npm install
 ```
 
-## API Documentation
+3. Set up environment variables:
+```bash
+# Frontend (.env.local)
+NEXT_PUBLIC_API_URL=http://localhost:3001
 
-API documentation is available at `/docs` when running the server.
+# Backend (.env)
+PORT=3001
+MONGODB_URI=mongodb://localhost:27017/email-ai
+JWT_SECRET=your_jwt_secret
+```
 
-## Security Best Practices
+4. Start the development servers:
+```bash
+# Start backend server
+cd backend
+npm run dev
 
-1. All passwords are hashed using bcrypt
-2. JWT tokens are signed with HS256 algorithm
-3. Rate limiting is enabled for all endpoints
-4. All database queries are parameterized
-5. Input validation using Pydantic models 
+# Start frontend server
+cd frontend
+npm run dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Project Structure
+
+```
+email-ai-app/
+├── frontend/
+│   ├── src/
+│   │   ├── app/              # Next.js app directory
+│   │   │   ├── components/       # React components
+│   │   │   ├── contexts/        # React contexts
+│   │   │   ├── services/        # API services
+│   │   │   └── theme/           # Material-UI theme
+│   │   ├── public/              # Static assets
+│   │   └── package.json
+│   ├── backend/
+│   │   ├── src/
+│   │   │   ├── config/          # Configuration files
+│   │   │   ├── controllers/     # Route controllers
+│   │   │   ├── middleware/      # Custom middleware
+│   │   │   ├── models/          # Database models
+│   │   │   ├── routes/          # API routes
+│   │   │   └── services/        # Business logic
+│   │   └── package.json
+│   └── README.md
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 

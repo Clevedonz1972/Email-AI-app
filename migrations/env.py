@@ -4,11 +4,12 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
+from backend.config import settings
+from backend.models import Base
 
 # Add the parent directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from backend.database import Base
 import backend.models.user  # Import all models here
 
 config = context.config
@@ -17,7 +18,10 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-def run_migrations_offline():
+# Override sqlalchemy.url with the URL from settings
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -29,16 +33,19 @@ def run_migrations_offline():
     with context.begin_transaction():
         context.run_migrations()
 
-def run_migrations_online():
+def run_migrations_online() -> None:
+    configuration = config.get_section(config.config_ini_section)
+    configuration["sqlalchemy.url"] = settings.DATABASE_URL
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata
         )
 
         with context.begin_transaction():

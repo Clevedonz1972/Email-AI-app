@@ -1,28 +1,35 @@
-from pydantic import BaseModel, conint
-from typing import Dict, Optional
+from pydantic import BaseModel, Field
+from typing import Dict, Optional, List
+from datetime import time
+
 
 class AccessibilityPreferences(BaseModel):
-    high_contrast: bool = False
-    large_text: bool = False
-    reduced_motion: bool = False
-    text_scale: conint(ge=50, le=200) = 100
+    high_contrast: bool = Field(default=False)
+    large_text: bool = Field(default=False)
+    reduced_motion: bool = Field(default=False)
+    text_scale: int = Field(default=100, ge=50, le=200)
+
 
 class NotificationPreferences(BaseModel):
-    email: bool = True
-    push: bool = False
-    quiet_hours: Dict[str, str] = {"start": "22:00", "end": "07:00"}
+    email_notifications: bool = Field(default=True)
+    push_notifications: bool = Field(default=False)
+    quiet_hours_start: time = Field(default=time(22, 0))  # 10 PM
+    quiet_hours_end: time = Field(default=time(7, 0))     # 7 AM
 
-class AIPreferences(BaseModel):
-    level: str = "balanced"
-    auto_categorize: bool = True
-    stress_monitoring: bool = True
+
+class AIAssistancePreferences(BaseModel):
+    assistance_level: str = Field(default="balanced", pattern="^(low|balanced|high)$")
+    auto_categorize: bool = Field(default=True)
+    stress_monitoring: bool = Field(default=True)
+
 
 class PreferencesUpdate(BaseModel):
-    accessibility: Optional[AccessibilityPreferences]
-    notifications: Optional[NotificationPreferences]
-    ai_assistance: Optional[AIPreferences]
+    accessibility: Optional[AccessibilityPreferences] = None
+    notifications: Optional[NotificationPreferences] = None
+    ai_assistance: Optional[AIAssistancePreferences] = None
+
 
 class PreferencesResponse(BaseModel):
     accessibility: AccessibilityPreferences
     notifications: NotificationPreferences
-    ai_assistance: AIPreferences 
+    ai_assistance: AIAssistancePreferences

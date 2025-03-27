@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/msdeyncourtharvey/Documents/Documents - MS’s MacBook Air/Email AI app/.venv"
+VIRTUAL_ENV="/Users/msdeyncourtharvey/Projects/Email-AI-app/.venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

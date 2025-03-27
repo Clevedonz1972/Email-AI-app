@@ -1,10 +1,12 @@
 from enum import Enum
 from typing import Optional
 
+
 class ProviderType(Enum):
     GMAIL = "gmail"
     OUTLOOK = "outlook"
     IMAP = "imap"
+
 
 class EmailProviderFactory:
     @staticmethod
@@ -14,4 +16,4 @@ class EmailProviderFactory:
         elif provider_type == ProviderType.OUTLOOK:
             return OutlookProvider(config)
         elif provider_type == ProviderType.IMAP:
-            return IMAPProvider(config) 
+            return IMAPProvider(config)

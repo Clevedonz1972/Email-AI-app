@@ -1,6 +1,7 @@
 import { configure } from '@testing-library/react';
 import { toHaveNoViolations } from 'jest-axe';
 import { getColorContrast, isColorContrastValid } from '../utils/accessibility/colorContrast';
+import { expect } from '@jest/globals';
 
 // Extend timeout for users who might need more time
 configure({ 
@@ -23,14 +24,13 @@ declare global {
 // Custom matchers for neurodivergent-specific tests
 expect.extend({
   toHaveAdequateColorContrast(foreground: string, background: string) {
-    const contrast = getColorContrast(foreground, background);
-    const pass = isColorContrastValid(foreground, background);
+    const ratio = getColorContrast(foreground, background);
+    const pass = ratio >= 4.5;  // WCAG AA standard for normal text
+
     return {
       pass,
-      message: () => 
-        pass
-          ? `Expected color contrast to be less than 4.5:1, got ${contrast}:1`
-          : `Expected color contrast to be at least 4.5:1, got ${contrast}:1`
+      message: () =>
+        `expected color contrast ratio to be at least 4.5, but got ${ratio}`,
     };
   },
 

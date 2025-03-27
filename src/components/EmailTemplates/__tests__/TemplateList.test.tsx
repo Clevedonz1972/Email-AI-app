@@ -24,7 +24,7 @@ describe('TemplateList', () => {
     jest.clearAllMocks();
   });
 
-  it('renders empty state when no templates exist', () => {
+  it('renders empty state when no templates are available', () => {
     render(
       <TemplateList
         templates={[]}
@@ -33,7 +33,7 @@ describe('TemplateList', () => {
       />
     );
 
-    expect(screen.getByText(/No templates available/i)).toBeInTheDocument();
+    expect(screen.getByText('No Templates Available')).toBeInTheDocument();
   });
 
   it('renders template list when templates exist', () => {

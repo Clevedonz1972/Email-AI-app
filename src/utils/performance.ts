@@ -1,3 +1,10 @@
+// Add gtag type declaration at the top of the file
+declare global {
+  interface Window {
+    gtag?: (command: string, action: string, params: Record<string, any>) => void;
+  }
+}
+
 import { ReportHandler } from 'web-vitals';
 
 const vitalsUrl = 'https://vitals.vercel-analytics.com/v1/vitals';
@@ -10,9 +17,17 @@ function getConnectionSpeed() {
   return 'unknown';
 }
 
-const sendToAnalytics = (metric: any, options?: { debug?: boolean }) => {
+interface VitalsMetric {
+  id: string;
+  name: string;
+  value: number;
+  delta?: number;
+  entries: any[];
+}
+
+const sendToAnalytics = (metric: VitalsMetric, options?: { debug?: boolean }) => {
   const body = {
-    dsn: process.env.REACT_APP_VERCEL_ANALYTICS_ID,
+    dsn: process.env.REACT_APP_VERCEL_ANALYTICS_ID || '',
     id: metric.id,
     page: window.location.pathname,
     href: window.location.href,
@@ -26,9 +41,16 @@ const sendToAnalytics = (metric: any, options?: { debug?: boolean }) => {
     return;
   }
 
-  const blob = new Blob([new URLSearchParams(body).toString()], {
+  // Convert all values to strings to satisfy URLSearchParams type requirements
+  const params = new URLSearchParams();
+  Object.entries(body).forEach(([key, value]) => {
+    params.append(key, value.toString());
+  });
+
+  const blob = new Blob([params.toString()], {
     type: 'application/x-www-form-urlencoded',
   });
+
   if (navigator.sendBeacon) {
     navigator.sendBeacon(vitalsUrl, blob);
   } else {

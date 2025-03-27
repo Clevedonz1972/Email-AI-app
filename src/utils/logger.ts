@@ -6,6 +6,11 @@ interface LogMessage extends ILogMessage {
   sessionId: string;
 }
 
+interface LoggerOptions {
+  level?: 'info' | 'warn' | 'error';
+  metadata?: Record<string, unknown>;
+}
+
 class Logger {
   private static instance: Logger;
   private readonly loggingEndpoint = process.env.REACT_APP_LOGGING_API;
@@ -34,7 +39,7 @@ class Logger {
     if (process.env.NODE_ENV === 'production') {
       await this.sendToLoggingService(logMessage);
     } else {
-      this.logToConsole(logMessage);
+      this.logToConsole(level, logMessage.message, logMessage.context);
     }
   }
 
@@ -54,21 +59,24 @@ class Logger {
     }
   }
 
-  private logToConsole(logMessage: LogMessage) {
-    const { level, message, context } = logMessage;
+  private logToConsole(level: string, message: string, metadata?: Record<string, unknown>) {
+    const timestamp = new Date().toISOString();
+    const logData = {
+      timestamp,
+      level,
+      message,
+      ...metadata,
+    };
+
     switch (level) {
       case 'error':
-        console.error(message, context);
+        console.error(logData);
         break;
       case 'warn':
-        console.warn(message, context);
+        console.warn(logData);
         break;
-      case 'info':
-        console.info(message, context);
-        break;
-      case 'debug':
-        console.log(message, context);
-        break;
+      default:
+        console.log(logData);
     }
   }
 
@@ -80,20 +88,24 @@ class Logger {
     return localStorage.getItem('userId') || undefined;
   }
 
-  info(message: string, context?: Record<string, unknown>) {
-    return this.log('info', message, context);
+  info(message: string, metadata?: Record<string, unknown>) {
+    this.logToConsole('info', message, metadata);
   }
 
-  error(message: string | Error, context?: Record<string, unknown>) {
-    return this.log('error', message, context);
+  error(message: string | Error, metadata?: Record<string, unknown>) {
+    const errorMessage = message instanceof Error ? message.message : message;
+    const errorMetadata = message instanceof Error 
+      ? { ...metadata, stack: message.stack }
+      : metadata;
+    this.logToConsole('error', errorMessage, errorMetadata);
   }
 
-  warn(message: string, context?: Record<string, unknown>) {
-    return this.log('warn', message, context);
+  warn(message: string, metadata?: Record<string, unknown>) {
+    this.logToConsole('warn', message, metadata);
   }
 
   debug(message: string, context?: Record<string, unknown>) {
-    return this.log('debug', message, context);
+    this.log('debug', message, context);
   }
 }
 

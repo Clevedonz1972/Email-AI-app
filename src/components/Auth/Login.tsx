@@ -9,9 +9,10 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { logger } from '@/utils/logger';
+import { AnimatedAlert } from '../Common/AnimatedAlert';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -20,10 +21,23 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const message = location.state?.message;
+  const severity = location.state?.severity || 'info';
+
+  const validateEmail = (email: string): boolean => {
+    return email.includes('@') && email.includes('.');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -60,6 +74,15 @@ export const Login: React.FC = () => {
           Sign In
         </Typography>
 
+        {message && (
+          <AnimatedAlert
+            show={true}
+            severity={severity}
+            message={message}
+            sx={{ mb: 3 }}
+          />
+        )}
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -70,11 +93,14 @@ export const Login: React.FC = () => {
           <TextField
             fullWidth
             label="Email"
-            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             margin="normal"
             required
+            inputProps={{
+              inputMode: 'email',
+              pattern: '[^@\\s]+@[^@\\s]+\\.[^@\\s]+'
+            }}
             autoComplete="email"
             autoFocus
           />
@@ -89,6 +115,20 @@ export const Login: React.FC = () => {
             required
             autoComplete="current-password"
           />
+
+          <Box sx={{ mb: 2, textAlign: 'right' }}>
+            <Link
+              component={RouterLink}
+              to="/forgot-password"
+              variant="body2"
+              sx={{ 
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'underline' }
+              }}
+            >
+              Forgot Password?
+            </Link>
+          </Box>
 
           <Button
             type="submit"

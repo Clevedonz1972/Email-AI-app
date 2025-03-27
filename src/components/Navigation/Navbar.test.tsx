@@ -13,8 +13,8 @@ describe('Navbar', () => {
 
     render(<Navbar />);
 
-    expect(screen.getByText(/login/i)).toBeInTheDocument();
-    expect(screen.getByText(/register/i)).toBeInTheDocument();
+    expect(screen.getByText('Login')).toBeInTheDocument();
+    expect(screen.getByText('Register')).toBeInTheDocument();
   });
 
   it('shows user email and logout button when authenticated', () => {
@@ -26,15 +26,15 @@ describe('Navbar', () => {
     render(<Navbar />);
 
     expect(screen.getByText('test@example.com')).toBeInTheDocument();
-    expect(screen.getByText(/logout/i)).toBeInTheDocument();
+    expect(screen.getByText('Logout')).toBeInTheDocument();
   });
 
   it('toggles theme when theme button is clicked', () => {
     render(<Navbar />);
     
-    const themeButton = screen.getByLabelText(/switch to dark mode/i);
+    const themeButton = screen.getByLabelText('Switch to Dark Mode');
     fireEvent.click(themeButton);
     
-    expect(screen.getByLabelText(/switch to light mode/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Switch to Light Mode')).toBeInTheDocument();
   });
 }); 

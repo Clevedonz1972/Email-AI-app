@@ -20,6 +20,9 @@ import PauseIcon from '@mui/icons-material/Pause';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useAIAssistant } from '../../hooks/useAIAssistant';
+import { useAccessibility } from '../../contexts/AccessibilityContext';
+import { useKeyboardNavigation } from '../../hooks/useKeyboardNavigation';
+import { FocusAssistant } from '../Common/FocusAssistant';
 import type { EmailMessage, EmailSender } from '@/types/email';
 
 const ComposerWrapper = styled(Paper)(({ theme }) => ({
@@ -50,7 +53,7 @@ const StressIndicator = styled(Box)<{ stress: number }>(({ theme, stress }) => (
          theme.palette.success.main,
 }));
 
-interface EmailComposerProps {
+export interface EmailComposerProps {
   recipient?: string;
   initialValues: {
     subject: string;
@@ -66,13 +69,15 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   onSend
 }) => {
   const theme = useTheme();
+  const { preferences } = useAccessibility();
   const [to, setTo] = useState(recipient);
   const [emailSubject, setEmailSubject] = useState(initialValues.subject);
   const [content, setContent] = useState(initialValues.content);
   const [isLoading, setIsLoading] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [stressLevel, setStressLevel] = useState(0);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
 
   const { 
     generateSuggestion, 
@@ -81,6 +86,23 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     isGenerating,
     error: aiError 
   } = useAIAssistant();
+
+  // Keyboard navigation setup
+  useKeyboardNavigation({
+    enabled: true,
+    onEscape: () => {
+      if (showAIPanel) {
+        setShowAIPanel(false);
+      }
+    },
+    onEnter: () => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && 
+          (activeElement.tagName === 'BUTTON' || activeElement.tagName === 'A')) {
+        activeElement.click();
+      }
+    },
+  });
 
   const handleContentChange = async (value: string) => {
     setContent(value);
@@ -121,7 +143,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   };
 
   return (
-    <ComposerWrapper>
+    <ComposerWrapper ref={composerRef}>
       <Typography variant="h6" gutterBottom>
         Compose Email
       </Typography>
@@ -129,11 +151,11 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       <StressIndicator stress={stressLevel}>
         <Tooltip title={`Email stress level: ${stressLevel}%`}>
           {stressLevel > 70 ? (
-            <ErrorOutlineIcon />
+            <ErrorOutlineIcon aria-label="High stress level" />
           ) : stressLevel > 40 ? (
-            <TimerIcon />
+            <TimerIcon aria-label="Medium stress level" />
           ) : (
-            <CheckCircleIcon />
+            <CheckCircleIcon aria-label="Low stress level" />
           )}
         </Tooltip>
       </StressIndicator>
@@ -145,6 +167,10 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
         onChange={(e) => setTo(e.target.value)}
         placeholder="recipient@example.com"
         aria-label="Email recipient"
+        inputProps={{
+          'aria-required': 'true',
+          'aria-describedby': 'recipient-helper-text'
+        }}
       />
 
       <TextField
@@ -154,21 +180,47 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
         onChange={(e) => setEmailSubject(e.target.value)}
         placeholder="Enter email subject"
         aria-label="Email subject"
+        inputProps={{
+          'aria-required': 'true',
+          'aria-describedby': 'subject-helper-text'
+        }}
       />
 
-      <TextField
-        fullWidth
-        multiline
-        rows={6}
-        label="Content"
-        value={content}
-        onChange={(e) => handleContentChange(e.target.value)}
-        placeholder="Write your email here..."
-        aria-label="Email content"
-        inputRef={contentRef}
-      />
+      <Box ref={contentRef} position="relative">
+        <TextField
+          fullWidth
+          multiline
+          rows={6}
+          label="Content"
+          value={content}
+          onChange={(e) => handleContentChange(e.target.value)}
+          placeholder="Write your email here..."
+          aria-label="Email content"
+          inputProps={{
+            'aria-required': 'true',
+            'aria-describedby': 'content-helper-text',
+            style: {
+              fontSize: preferences.fontSize,
+              lineHeight: preferences.lineSpacing,
+            }
+          }}
+        />
+        {preferences.focusMode && (
+          <FocusAssistant 
+            contentRef={contentRef as React.RefObject<HTMLDivElement>}
+            onComplete={() => {/* Handle focus completion */}}
+          />
+        )}
+      </Box>
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+      <Box 
+        display="flex" 
+        justifyContent="space-between" 
+        alignItems="center" 
+        mt={2}
+        role="toolbar" 
+        aria-label="Email actions"
+      >
         <Box>
           <Tooltip title="Get AI assistance with your email">
             <Button
@@ -178,6 +230,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
               color="primary"
               variant="outlined"
               sx={{ mr: 1 }}
+              aria-label="AI Assist"
             >
               AI Assist
             </Button>
@@ -188,6 +241,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
               disabled={isGenerating || !content}
               color="secondary"
               variant="outlined"
+              aria-label="Simplify content"
             >
               Simplify
             </Button>
@@ -200,23 +254,25 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
           endIcon={isLoading ? <CircularProgress size={20} /> : <SendIcon />}
           onClick={handleSend}
           disabled={isLoading || !to || !emailSubject || !content}
+          aria-label="Send email"
+          aria-busy={isLoading}
         >
           Send
         </Button>
       </Box>
 
       <Collapse in={showAIPanel}>
-        <AIAssistantPanel>
+        <AIAssistantPanel role="complementary" aria-label="AI Suggestions">
           <Typography variant="subtitle2" color="primary" gutterBottom>
             AI Suggestions
           </Typography>
           {isGenerating ? (
-            <Box display="flex" alignItems="center">
+            <Box display="flex" alignItems="center" role="status">
               <CircularProgress size={20} sx={{ mr: 1 }} />
               <Typography variant="body2">Generating suggestions...</Typography>
             </Box>
           ) : aiError ? (
-            <Typography color="error" variant="body2">
+            <Typography color="error" variant="body2" role="alert">
               {aiError}
             </Typography>
           ) : (
@@ -228,6 +284,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                 icon={<PauseIcon />}
                 sx={{ mr: 1 }}
                 onClick={() => {}}
+                role="button"
               />
               <Typography variant="body2" color="textSecondary" mt={1}>
                 This email has a high stress level. Consider taking a short break before sending.
