@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
@@ -7,6 +7,17 @@ from datetime import datetime
 from .client import MOCK_EMAILS
 from backend.ai.handlers import AIHandler
 from backend.auth import router as auth_router
+
+# Add a login request model
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+# Add a token response model
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+    refresh_token: Optional[str] = None
 
 app = FastAPI(
     title="Neurodiverse Email API",
@@ -26,8 +37,8 @@ app.add_middleware(
 # Initialize AI Handler
 ai_handler = AIHandler()
 
-app.include_router(auth_router)
-
+# Mount auth router at the correct path
+app.include_router(auth_router, prefix="/api", tags=["authentication"])
 
 # Pydantic models for request/response validation
 class EmailUpdate(BaseModel):

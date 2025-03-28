@@ -7,12 +7,11 @@ import {
   Paper,
   Typography,
   Button,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  CircularProgress,
+  Card,
+  CardContent,
+  CardActions,
+  IconButton,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,10 +22,25 @@ import {
   Snackbar,
   Alert,
   LinearProgress,
+  useTheme,
 } from '@mui/material';
 import { 
   Circle as CircleIcon,
   NotificationsActive as NotificationsIcon,
+  LocationOn as LocationIcon,
+  WbSunny as SunnyIcon,
+  Cloud as CloudIcon,
+  Email as EmailIcon,
+  Chat as ChatIcon,
+  Phone as PhoneIcon,
+  Spa as WellbeingIcon,
+  FitnessCenter as FitnessIcon,
+  Warning as WarningIcon,
+  Mic as MicIcon,
+  MoreVert as MoreIcon,
+  Favorite as HeartIcon,
+  Monitor as MonitorIcon,
+  PauseCircleOutline as PauseCircleOutlineIcon
 } from '@mui/icons-material';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
 import { emailService } from '../../services/emailService';
@@ -42,7 +56,176 @@ interface AppMetrics {
   upcomingEvents: number;
 }
 
+// Support dialog component
+const SupportDialog: React.FC<{
+  open: boolean;
+  onClose: () => void;
+}> = ({ open, onClose }) => {
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogContent sx={{ p: 4, background: 'rgba(245, 245, 245, 0.9)' }}>
+        <Box sx={{ position: 'absolute', top: 10, right: 10 }}>
+          <IconButton onClick={onClose}>
+            <MicIcon />
+          </IconButton>
+        </Box>
+        
+        <Typography variant="h4" gutterBottom>
+          What do you need right now?
+        </Typography>
+        
+        <Typography variant="body1" sx={{ mb: 4 }}>
+          It's okay to need support. Choose the option that feels right for you in this moment.
+        </Typography>
+        
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(200, 230, 255, 0.7)' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                  <Box 
+                    sx={{ 
+                      bgcolor: '#b3e0ff', 
+                      borderRadius: '50%', 
+                      width: 50, 
+                      height: 50,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 2
+                    }}
+                  >
+                    <MicIcon sx={{ color: '#0066cc' }} />
+                  </Box>
+                  <Typography variant="h5">
+                    Talk to Me
+                  </Typography>
+                </Box>
+                
+                <Typography sx={{ mb: 3, flexGrow: 1 }}>
+                  Have a private conversation with AI to process your thoughts and get immediate support without judgment.
+                </Typography>
+                
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  sx={{ 
+                    mt: 'auto', 
+                    bgcolor: '#b3e0ff', 
+                    color: '#0066cc',
+                    '&:hover': {
+                      bgcolor: '#80ccff',
+                    } 
+                  }}
+                >
+                  Start Conversation
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(200, 255, 200, 0.7)' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                  <Box 
+                    sx={{ 
+                      bgcolor: '#b3ffb3', 
+                      borderRadius: '50%', 
+                      width: 50, 
+                      height: 50,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 2
+                    }}
+                  >
+                    <EmailIcon sx={{ color: '#008800' }} />
+                  </Box>
+                  <Typography variant="h5">
+                    Reach Out
+                  </Typography>
+                </Box>
+                
+                <Typography sx={{ mb: 3, flexGrow: 1 }}>
+                  Connect with someone in your support network. We'll help craft the message so you don't have to find the words.
+                </Typography>
+                
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  sx={{ 
+                    mt: 'auto', 
+                    bgcolor: '#b3ffb3', 
+                    color: '#008800',
+                    '&:hover': {
+                      bgcolor: '#80ff80',
+                    } 
+                  }}
+                >
+                  Get Help Template
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(255, 200, 200, 0.7)' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+                  <Box 
+                    sx={{ 
+                      bgcolor: '#ffb3b3', 
+                      borderRadius: '50%', 
+                      width: 50, 
+                      height: 50,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mr: 2
+                    }}
+                  >
+                    <WarningIcon sx={{ color: '#cc0000' }} />
+                  </Box>
+                  <Typography variant="h5">
+                    I Need Space
+                  </Typography>
+                </Box>
+                
+                <Typography sx={{ mb: 3, flexGrow: 1 }}>
+                  Activate "do not disturb" mode, send automated responses, and get guided through a calming break.
+                </Typography>
+                
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  sx={{ 
+                    mt: 'auto', 
+                    bgcolor: '#ffb3b3', 
+                    color: '#cc0000',
+                    '&:hover': {
+                      bgcolor: '#ff8080',
+                    } 
+                  }}
+                >
+                  Activate Break Mode
+                </Button>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const Dashboard: React.FC = () => {
+  const theme = useTheme();
   const { preferences } = useAccessibility();
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +246,27 @@ export const Dashboard: React.FC = () => {
   });
   const contentRef = React.useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  
+  const [date, setDate] = useState(new Date());
+  
+  // Set current date
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setDate(new Date());
+    }, 60000);
+    
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+  
+  // Format date as "Thursday, March 6, 2025"
+  const formattedDate = date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
 
   useEffect(() => {
     const fetchEmails = async () => {
@@ -208,147 +412,292 @@ export const Dashboard: React.FC = () => {
     return 'LOW';
   };
   
+  const [supportDialogOpen, setSupportDialogOpen] = useState(false);
+  
+  // Handle opening support dialog
+  const handleOpenSupportDialog = () => {
+    setSupportDialogOpen(true);
+  };
+  
+  // Handle closing support dialog
+  const handleCloseSupportDialog = () => {
+    setSupportDialogOpen(false);
+  };
+  
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static" color="primary">
-        <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Neurodivergent Email Assistant
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#f5f5f5', position: 'relative' }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        {/* Weather and Location Bar */}
+        <Paper 
+          sx={{ 
+            p: 1, 
+            mb: 3, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            flexWrap: 'wrap'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <LocationIcon sx={{ mr: 0.5 }} />
+            <Typography variant="body1" sx={{ mr: 2 }}>London, UK</Typography>
+            <CloudIcon sx={{ mr: 0.5, color: '#888' }} />
+            <Typography variant="body1">15°C Cloudy</Typography>
+          </Box>
+          
+          <Box>
+            <Typography variant="body2" color="textSecondary">
+              A bit cool today. Maybe bring a light jacket! 🧥
+            </Typography>
+          </Box>
+          
+          <Typography variant="body2" color="textSecondary">
+            {formattedDate}
           </Typography>
-          <Button color="inherit" onClick={() => navigate('/settings')}>
-            Settings
+        </Paper>
+        
+        {/* Daily Brief Section */}
+        <Box mb={4}>
+          <DailyBrief 
+            unreadCount={emails.filter(e => !e.is_read).length}
+            eventsCount={3}
+            tasksCount={5}
+            stressLevel="LOW"
+          />
+        </Box>
+        
+        {/* Action Buttons - Just keep the SPEAK TO ME button */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            gap: 2, 
+            mb: 4
+          }}
+        >
+          <Button 
+            variant="contained" 
+            color="secondary"
+            startIcon={<MicIcon />}
+            sx={{ borderRadius: 28, px: 3 }}
+          >
+            SPEAK TO ME
           </Button>
-        </Toolbar>
-      </AppBar>
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={5}>
-            <Box mb={3}>
-              <Paper elevation={1} sx={{ p: 2, borderRadius: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Daily Brief
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body1">
-                    <strong>Unread Emails:</strong> {emails.filter(e => !e.is_read).length}
-                  </Typography>
-                  <Typography variant="body1">
-                    <strong>Today's Events:</strong> 3
-                  </Typography>
-                  <Typography variant="body1">
-                    <strong>Pending Tasks:</strong> 5
-                  </Typography>
-                  <Typography variant="body1">
-                    <strong>Stress Level:</strong> {getOverallStressLevel()}
-                  </Typography>
-                </Box>
-              </Paper>
-            </Box>
-            
-            <Box mt={3}>
-              <EmailList
-                emails={emails}
-                loading={loading}
-                onSelectEmail={handleEmailSelect}
-                onMarkRead={handleMarkRead}
-                selectedEmailId={selectedEmail?.id}
-                onSendReply={handleSendReply}
-              />
-            </Box>
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <Box mb={3}>
-              <Button 
-                variant="contained" 
-                color="primary" 
-                onClick={handleProcessBacklog}
-                disabled={isProcessing || emails.filter(e => !e.processed).length === 0}
-                sx={{ mr: 2 }}
+        </Box>
+        
+        {/* Communications Section */}
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            mb: 2, 
+            color: theme.palette.primary.main,
+            fontWeight: 'bold'
+          }}
+        >
+          Communications
+        </Typography>
+        
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%' }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
               >
-                Process Email Backlog
-              </Button>
-              <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                {emails.filter(e => e.processed).length} of {emails.length} emails processed
-              </Typography>
-            </Box>
-
-            <Paper 
-              ref={contentRef}
-              elevation={1} 
-              sx={{ 
-                p: 3, 
-                borderRadius: 2,
-                minHeight: '60vh',
-                display: 'flex',
-                flexDirection: 'column',
-              }}
-            >
-              {selectedEmail ? (
-                <EmailDetail 
-                  email={selectedEmail} 
-                  onMarkRead={() => handleMarkRead(selectedEmail.id)}
-                  onReply={() => console.log(`Replying to email: ${selectedEmail.id}`)}
-                  onSendReply={(content) => handleSendReply(selectedEmail.id, content)}
-                />
-              ) : (
-                <Box 
-                  sx={{ 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    flex: 1,
-                  }}
-                >
-                  <Typography variant="h6" color="textSecondary">
-                    Select an email to view details
-                  </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <EmailIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                  <Typography variant="h6">Email</Typography>
                 </Box>
-              )}
+                <IconButton>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  AI-powered email management and stress reduction
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%' }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <ChatIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                  <Typography variant="h6">Chat</Typography>
+                </Box>
+                <IconButton>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  WhatsApp & text messages (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%' }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <PhoneIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+                  <Typography variant="h6">Calls</Typography>
+                </Box>
+                <IconButton>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Phone call assistance (Coming soon)
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
         </Grid>
-
-        {/* Processing Dialog */}
-        <Dialog open={openProcessingDialog && isProcessing}>
-          <DialogTitle>Processing Email Backlog</DialogTitle>
-          <DialogContent>
-            <DialogContentText>
-              AI is analyzing and categorizing your emails...
-            </DialogContentText>
-            <Box sx={{ width: '100%', mt: 2 }}>
-              <Typography variant="body2">
-                Processed {processedEmails} of {emails.filter(e => !e.processed).length} emails
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                <Box sx={{ width: '100%', mr: 1 }}>
-                  <LinearProgress variant="determinate" value={processingProgress} />
-                </Box>
-                <Box sx={{ minWidth: 35 }}>
-                  <Typography variant="body2" color="text.secondary">{`${Math.round(processingProgress)}%`}</Typography>
-                </Box>
-              </Box>
-            </Box>
-          </DialogContent>
-        </Dialog>
-
-        {/* Add notification for reply status */}
-        <Snackbar
-          open={replyNotification.open}
-          autoHideDuration={6000}
-          onClose={handleCloseNotification}
+        
+        {/* Health & Wellbeing Section */}
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            mb: 2, 
+            color: theme.palette.error.main,
+            fontWeight: 'bold'
+          }}
         >
-          <Alert 
-            onClose={handleCloseNotification} 
-            severity={replyNotification.severity}
-            variant="filled"
-          >
-            {replyNotification.message}
-          </Alert>
-        </Snackbar>
+          Health & Wellbeing
+        </Typography>
+        
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%' }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <MonitorIcon sx={{ mr: 1, color: theme.palette.error.main }} />
+                  <Typography variant="h6">Stress Monitor</Typography>
+                </Box>
+                <IconButton>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Track and manage communication stress (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%' }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <WellbeingIcon sx={{ mr: 1, color: 'green' }} />
+                  <Typography variant="h6">Wellness</Typography>
+                </Box>
+                <IconButton>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Personalized wellness recommendations (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={4}>
+            <Paper sx={{ height: '100%' }}>
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FitnessIcon sx={{ mr: 1, color: theme.palette.error.main }} />
+                  <Typography variant="h6">Physical</Typography>
+                </Box>
+                <IconButton>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
+                  Activity tracking and recommendations (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
       </Container>
+      
+      {/* Stop the World Button - positioned at bottom right */}
+      <Button 
+        variant="contained" 
+        color="primary"
+        onClick={handleOpenSupportDialog}
+        startIcon={<PauseCircleOutlineIcon />}
+        sx={{ 
+          position: 'fixed', 
+          bottom: 24, 
+          right: 24, 
+          borderRadius: 28, 
+          px: 3,
+          py: 1.5,
+          backgroundColor: '#6366f1',
+          '&:hover': {
+            backgroundColor: '#4f46e5',
+          },
+          zIndex: 1000
+        }}
+      >
+        Stop the World
+      </Button>
+      
+      {/* Support Dialog */}
+      <SupportDialog 
+        open={supportDialogOpen}
+        onClose={handleCloseSupportDialog}
+      />
     </Box>
   );
 }; 

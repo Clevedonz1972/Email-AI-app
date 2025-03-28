@@ -31,8 +31,16 @@ class ApiClient {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.detail || 'An error occurred');
+      let errorMessage = 'An error occurred';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+      } catch (e) {
+        errorMessage = response.statusText || errorMessage;
+      }
+      
+      console.error(`API Error (${response.status}): ${errorMessage}`);
+      throw new Error(errorMessage);
     }
 
     return response.json();

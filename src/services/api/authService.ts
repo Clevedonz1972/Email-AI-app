@@ -9,22 +9,29 @@ interface LoginResponse {
 }
 
 export class AuthService {
-  private static readonly BASE_PATH = '/auth';
+  private static readonly BASE_PATH = '/api/auth';
 
   static async login(email: string, password: string): Promise<LoginResponse> {
-    const response = await ApiClient.request<LoginResponse>(`${this.BASE_PATH}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    
-    if (response.access_token) {
-      localStorage.setItem('access_token', response.access_token);
+    try {
+      console.log('Attempting login to:', `${this.BASE_PATH}/login`);
+      const response = await ApiClient.request<LoginResponse>(`${this.BASE_PATH}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password }),
+        requiresAuth: false
+      });
+      
+      if (response.access_token) {
+        localStorage.setItem('access_token', response.access_token);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
     }
-    
-    return response;
   }
 
   static async register(credentials: RegisterCredentials): Promise<AuthResponse> {
