@@ -1,16 +1,13 @@
 import React, { useState } from 'react';
 import {
-  Fab,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
   Button,
-  Box,
-  Zoom
+  Box
 } from '@mui/material';
-import WarningIcon from '@mui/icons-material/Warning';
 
 const EmergencySupport: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -25,25 +22,7 @@ const EmergencySupport: React.FC = () => {
 
   return (
     <>
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 16,
-          right: 16,
-          zIndex: 1000
-        }}
-      >
-        <Zoom in={true}>
-          <Fab 
-            color="error" 
-            onClick={handleOpen} 
-            aria-label="emergency support"
-          >
-            <WarningIcon />
-          </Fab>
-        </Zoom>
-      </Box>
-
+      {/* Emergency dialog only - the button has been replaced by Stop the World button */}
       <Dialog
         open={open}
         onClose={handleClose}

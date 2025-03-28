@@ -365,7 +365,7 @@ const Dashboard: React.FC = () => {
                   transform: 'translateY(-2px)'
                 }
               }}
-              onClick={() => handleNavigate('/email-dashboard')}
+              onClick={() => navigate('/email-dashboard')}
             >
               <Box 
                 sx={{ 
@@ -392,7 +392,19 @@ const Dashboard: React.FC = () => {
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ height: '100%', bgcolor: '#333' }}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/chat-dashboard')}
+            >
               <Box 
                 sx={{ 
                   p: 2, 
@@ -418,7 +430,19 @@ const Dashboard: React.FC = () => {
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ height: '100%', bgcolor: '#333' }}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/calls-dashboard')}
+            >
               <Box 
                 sx={{ 
                   p: 2, 
@@ -458,7 +482,19 @@ const Dashboard: React.FC = () => {
         
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={4}>
-            <Paper sx={{ height: '100%', bgcolor: '#333' }}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/finance-dashboard')}
+            >
               <Box 
                 sx={{ 
                   p: 2, 
@@ -498,7 +534,19 @@ const Dashboard: React.FC = () => {
         
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
-            <Paper sx={{ height: '100%', bgcolor: '#333' }}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/health-dashboard')}
+            >
               <Box 
                 sx={{ 
                   p: 2, 
@@ -524,7 +572,19 @@ const Dashboard: React.FC = () => {
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ height: '100%', bgcolor: '#333' }}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/health-dashboard')}
+            >
               <Box 
                 sx={{ 
                   p: 2, 
@@ -550,7 +610,19 @@ const Dashboard: React.FC = () => {
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ height: '100%', bgcolor: '#333' }}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/health-dashboard')}
+            >
               <Box 
                 sx={{ 
                   p: 2, 

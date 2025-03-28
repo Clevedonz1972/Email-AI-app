@@ -13,6 +13,7 @@ import { ResetPassword } from './components/Auth/ResetPassword';
 import { SettingsPage } from './pages/Settings/SettingsPage';
 import { Landing } from './pages/Landing';
 import EmergencySupport from './components/Support/EmergencySupport';
+import { EmailDashboard } from './components/Dashboard/EmailDashboard';
 
 // Placeholder component for upcoming dashboards
 const ComingSoonDashboard: React.FC<{title: string}> = ({title}) => {
@@ -79,7 +80,7 @@ const AppRoutesWithAuth: React.FC = () => {
         element={
           <ProtectedRoute>
             <AuthenticatedLayout>
-              <Dashboard />
+              <EmailDashboard />
             </AuthenticatedLayout>
           </ProtectedRoute>
         } 
