@@ -47,16 +47,20 @@ const createWalkAnimation = (startHeight: number, midHeight: number, endHeight: 
     opacity: 0;
   }
   
-  /* Pause before starting from the other side at a different height */
-  50% {
+  /* Gentle transition between journeys - maintain animation */
+  49% {
     transform: translate(-150px, ${midHeight}px) scale(0.85);
     opacity: 0;
   }
   
   /* Second journey - left to right at different height */
-  52% {
+  50% {
     transform: translate(-150px, ${midHeight}px) scale(0.85);
     opacity: 0;
+  }
+  53% {
+    transform: translate(-50px, ${midHeight}px) scale(0.85);
+    opacity: 0.5;
   }
   55% {
     transform: translate(0, ${midHeight}px) scale(0.85);
@@ -123,6 +127,9 @@ export const AstiEasterEgg: React.FC<AstiEasterEggProps> = ({ open, onClose }) =
       width: '100%',
       height: '100%',
       objectFit: 'contain',
+      // Ensure GIF keeps playing by avoiding any property that might cause reload
+      willChange: 'transform',
+      backfaceVisibility: 'hidden'
     }
   })), [randomHeights]);
   
