@@ -3,31 +3,34 @@ version: '3.8'
 services:
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.frontend.dev
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_WS_URL=ws://localhost:8000
+      - REACT_APP_API_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000
+    command: npm start
     volumes:
-      - ./frontend:/app
+      - ./:/app
       - /app/node_modules
-      - /app/.next
     depends_on:
       - backend
 
   backend:
     build:
       context: .
-      dockerfile: backend/Dockerfile
+      dockerfile: ./backend/Dockerfile
     ports:
       - "8000:8000"
       - "5555:5555"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/email_ai
+      - JWT_SECRET_KEY=your_super_secret_key_for_development_only
+      - REDIS_HOST=redis
+      - ENVIRONMENT=development
+      - OPENAI_API_KEY=sk-dummy-key
       - REDIS_URL=redis://redis:6379/0
-      - JWT_SECRET=your_jwt_secret
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URI=http://localhost:8000/api/google/callback

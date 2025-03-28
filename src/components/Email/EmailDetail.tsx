@@ -336,7 +336,7 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
               is_read: true,
               category: 'inbox',
               processed: true,
-            }} 
+            }}
             analysis={analysis} 
             loading={analysisLoading} 
             error={analysisError} 

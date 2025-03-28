@@ -46,4 +46,41 @@ export const runNeurodivergentChecks = async (
   }
 
   return renderResult;
-}; 
+};
+
+export {};
+
+/* Original implementation commented out
+export const checkColorContrast = (element: HTMLElement) => {
+  // Implementation of color contrast check
+  const style = window.getComputedStyle(element);
+  
+  // Function to calculate contrast ratio between two colors
+  const calculateContrastRatio = (color1: string, color2: string) => {
+    // This would normally calculate the actual contrast ratio
+    return 4.5; // Placeholder value
+  };
+  
+  if (style.color && style.backgroundColor) {
+    const contrastRatio = calculateContrastRatio(style.color, style.backgroundColor);
+    return contrastRatio >= 4.5; // WCAG AA standard for normal text
+  }
+  
+  return true; // Skip check if colors aren't available
+};
+
+// Main function to check elements for neurodivergent-friendly design
+export const runNeurodivergentChecks = async (container: HTMLElement) => {
+  // Check all elements for proper color contrast
+  const allElements = container.querySelectorAll('*');
+  
+  allElements.forEach(element => {
+    if (element instanceof HTMLElement) {
+      const style = window.getComputedStyle(element);
+      if (style.color && style.backgroundColor) {
+        expect(style).toHaveAdequateColorContrast();
+      }
+    }
+  });
+};
+*/ 

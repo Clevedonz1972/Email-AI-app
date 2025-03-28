@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { EmailMessage, EmailAnalysis, Priority, StressLevel } from '@/types/email';
+import { EmailMessage, EmailAnalysis, Priority, StressLevel, Category } from '@/types/email';
 import { API_URL } from '../config';
 import { mockEmails, mockEmailAnalysis, mockStressReport, mockReplyOptions } from './mockData';
 import syntheticEmailService from './syntheticEmailService';
@@ -20,14 +20,27 @@ export interface ReplyRequestOptions {
 // Helper function to convert SyntheticEmail to EmailMessage
 const convertSyntheticToEmailMessage = (syntheticEmail: SyntheticEmail): EmailMessage => {
   // Map stress levels and priorities
-  const mapStressLevel = (level: number): StressLevel => {
-    if (level >= 7) return 'HIGH';
-    if (level >= 4) return 'MEDIUM';
+  const mapStressLevel = (level: string): StressLevel => {
+    const upperLevel = level.toUpperCase();
+    if (upperLevel === 'HIGH') return 'HIGH';
+    if (upperLevel === 'MEDIUM') return 'MEDIUM';
     return 'LOW';
   };
   
-  const mapPriority = (priority: 'high' | 'medium' | 'low'): Priority => {
-    return priority.toUpperCase() as Priority;
+  const mapPriority = (priority: string): Priority => {
+    const upperPriority = priority.toUpperCase();
+    if (upperPriority === 'HIGH') return 'HIGH';
+    if (upperPriority === 'MEDIUM') return 'MEDIUM';
+    return 'LOW';
+  };
+  
+  // Map folder to category
+  const mapFolderToCategory = (folder: string): Category => {
+    if (folder === 'archive') return 'trash';
+    if (folder === 'spam') return 'trash';
+    if (folder === 'drafts') return 'draft';
+    if (['inbox', 'sent', 'draft', 'trash'].includes(folder)) return folder as Category;
+    return 'inbox'; // Default
   };
   
   return {
@@ -43,7 +56,7 @@ const convertSyntheticToEmailMessage = (syntheticEmail: SyntheticEmail): EmailMe
     priority: mapPriority(syntheticEmail.metadata.priority),
     stress_level: mapStressLevel(syntheticEmail.metadata.stressLevel),
     is_read: syntheticEmail.isRead,
-    category: syntheticEmail.folder as any, // Convert folder to category
+    category: mapFolderToCategory(syntheticEmail.folder),
     processed: true,
     action_required: syntheticEmail.metadata.needsResponse,
     summary: syntheticEmail.body.substring(0, 150) + (syntheticEmail.body.length > 150 ? '...' : ''),
@@ -268,7 +281,7 @@ export const emailService = {
           // Extract first sentence of each paragraph and join
           simplifiedVersion = reply.body
             .split('\n\n')
-            .map(paragraph => {
+            .map((paragraph: string) => {
               const firstSentence = paragraph.split(/[.!?]+/)[0] + '.';
               return firstSentence;
             })

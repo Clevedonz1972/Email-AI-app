@@ -69,7 +69,7 @@ const AppRoutesWithAuth: React.FC = () => {
         element={
           <ProtectedRoute>
             <AuthenticatedLayout>
-              <MainDashboard />
+              <Dashboard />
             </AuthenticatedLayout>
           </ProtectedRoute>
         } 

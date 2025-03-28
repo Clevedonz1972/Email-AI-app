@@ -6,6 +6,8 @@ from typing import List
 # Get the backend directory (where config.py is located)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Force set the JWT_SECRET_KEY
+os.environ["JWT_SECRET_KEY"] = "your_super_secret_key_for_development_only"
 
 class Settings(BaseSettings):
     DATABASE_URL: str
