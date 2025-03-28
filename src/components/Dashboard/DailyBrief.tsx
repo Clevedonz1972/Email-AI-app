@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, Paper, Button, Collapse, IconButton } from '@mui/material';
+import { Box, Typography, Paper, Button, Collapse, IconButton, useTheme } from '@mui/material';
 import { 
   Email as EmailIcon, 
   Event as EventIcon, 
@@ -23,6 +23,8 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
   stressLevel = 'LOW'
 }) => {
   const [expanded, setExpanded] = useState(true);
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
 
   const handleExpandClick = () => {
     setExpanded(!expanded);
@@ -34,7 +36,9 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
         p: 2, 
         height: '100%', 
         borderLeft: '4px solid #1976d2',
-        borderRadius: '4px'
+        borderRadius: '4px',
+        bgcolor: isDarkMode ? 'background.paper' : '#ffffff',
+        color: isDarkMode ? 'text.primary' : 'inherit'
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -45,14 +49,15 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
             sx={{ 
               display: 'flex', 
               alignItems: 'center', 
-              fontWeight: 'bold' 
+              fontWeight: 'bold',
+              color: isDarkMode ? 'text.primary' : 'inherit'
             }}
           >
             <WellbeingIcon 
               sx={{ 
                 mr: 1, 
                 color: '#1976d2', 
-                bgcolor: '#e3f2fd', 
+                bgcolor: isDarkMode ? 'rgba(227, 242, 253, 0.2)' : '#e3f2fd', 
                 borderRadius: '50%', 
                 p: 0.5 
               }} 
@@ -60,7 +65,7 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
             Your Daily Brief
           </Typography>
         </Box>
-        <IconButton onClick={handleExpandClick}>
+        <IconButton onClick={handleExpandClick} color={isDarkMode ? 'default' : 'inherit'}>
           {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
         </IconButton>
       </Box>
@@ -69,20 +74,21 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
         <Box sx={{ mt: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <WellbeingIcon sx={{ mr: 1, color: 'green' }} />
-            <Typography variant="body1">
+            <Typography variant="body1" color={isDarkMode ? 'text.primary' : 'inherit'}>
               Good evening! Let's wrap up the day on a positive note. Your wellbeing matters - prioritize what's important.
             </Typography>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <EmailIcon sx={{ mr: 1, color: '#1976d2' }} />
-            <Typography variant="body1" sx={{ flexGrow: 1 }}>
+            <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
               You have {unreadCount} unread emails, but nothing urgent.
             </Typography>
             <Button 
               variant="outlined" 
               size="small"
               sx={{ ml: 2, fontSize: '0.7rem' }}
+              color={isDarkMode ? 'primary' : 'primary'}
             >
               ACTIONS
             </Button>
@@ -90,13 +96,14 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
 
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <EventIcon sx={{ mr: 1, color: '#1976d2' }} />
-            <Typography variant="body1" sx={{ flexGrow: 1 }}>
+            <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
               Your calendar is clear until 3pm, when you have a team meeting.
             </Typography>
             <Button 
               variant="outlined" 
               size="small"
               sx={{ ml: 2, fontSize: '0.7rem' }}
+              color={isDarkMode ? 'primary' : 'primary'}
             >
               ACTIONS
             </Button>
@@ -104,13 +111,14 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
 
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <TaskIcon sx={{ mr: 1, color: '#d32f2f' }} />
-            <Typography variant="body1" sx={{ flexGrow: 1 }}>
+            <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
               Take some time to respond to Sarah's message about the project proposal when you have a chance.
             </Typography>
             <Button 
               variant="outlined" 
               size="small"
               sx={{ ml: 2, fontSize: '0.7rem' }}
+              color={isDarkMode ? 'primary' : 'primary'}
             >
               ACTIONS
             </Button>
@@ -118,13 +126,14 @@ export const DailyBrief: React.FC<DailyBriefProps> = ({
 
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
             <WellbeingIcon sx={{ mr: 1, color: 'green' }} />
-            <Typography variant="body1" sx={{ flexGrow: 1 }}>
+            <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
               Your overall stress level today seems low. Keep it up!
             </Typography>
             <Button 
               variant="outlined" 
               size="small"
               sx={{ ml: 2, fontSize: '0.7rem' }}
+              color={isDarkMode ? 'primary' : 'primary'}
             >
               ACTIONS
             </Button>

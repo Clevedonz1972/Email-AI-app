@@ -10,10 +10,12 @@ import Dashboard from './pages/Dashboard';
 import MainDashboard from './pages/MainDashboard';
 import { ForgotPassword } from './components/Auth/ForgotPassword';
 import { ResetPassword } from './components/Auth/ResetPassword';
-import { SettingsPage } from './pages/Settings/SettingsPage';
+import Settings from './pages/Settings';
 import { Landing } from './pages/Landing';
 import EmergencySupport from './components/Support/EmergencySupport';
 import { EmailDashboard } from './components/Dashboard/EmailDashboard';
+import OnboardingControls from './pages/Admin/OnboardingControls';
+import AdminOnboarding from './pages/AdminOnboarding';
 
 // Placeholder component for upcoming dashboards
 const ComingSoonDashboard: React.FC<{title: string}> = ({title}) => {
@@ -130,13 +132,20 @@ const AppRoutesWithAuth: React.FC = () => {
         element={
           <ProtectedRoute>
             <AuthenticatedLayout>
-              <SettingsPage />
+              <Settings />
             </AuthenticatedLayout>
           </ProtectedRoute>
         } 
       />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/admin/onboarding" element={
+        <ProtectedRoute>
+          <AuthenticatedLayout>
+            <AdminOnboarding />
+          </AuthenticatedLayout>
+        </ProtectedRoute>
+      } />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -19,6 +19,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   LocationOn as LocationIcon,
@@ -95,6 +97,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
   const [settingsAnchorEl, setSettingsAnchorEl] = useState<HTMLDivElement | null>(null);
   const [selectedLocation, setSelectedLocation] = useState(preferences.location);
   const [selectedTempScale, setSelectedTempScale] = useState<TemperatureScale>(preferences.tempScale);
+  const [humorEnabled, setHumorEnabled] = useState<boolean>(preferences.humorEnabled);
   const [scaleInfoOpen, setScaleInfoOpen] = useState(false);
 
   const settingsOpen = Boolean(settingsAnchorEl);
@@ -104,8 +107,15 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
     try {
       setLoading(true);
       setError(null);
-      const data = await weatherService.getWeather(preferences.location, preferences.tempScale);
-      setWeatherData(data);
+      // Use real API by default, fallback to mock if there's an error
+      try {
+        const data = await weatherService.getWeather(preferences.location, preferences.tempScale, false);
+        setWeatherData(data);
+      } catch (apiError) {
+        console.warn('Using mock weather data due to API error:', apiError);
+        const mockData = await weatherService.getWeather(preferences.location, preferences.tempScale, true);
+        setWeatherData(mockData);
+      }
     } catch (err) {
       setError('Could not load weather data');
       console.error('Weather fetch error:', err);
@@ -134,7 +144,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
   const handleSaveSettings = () => {
     updatePreferences({
       location: selectedLocation,
-      tempScale: selectedTempScale
+      tempScale: selectedTempScale,
+      humorEnabled: humorEnabled
     });
     handleSettingsClose();
   };
@@ -215,7 +226,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
           {!compact && (
             <Box>
               <Typography variant="body2" sx={{ color: '#ccc' }}>
-                {weatherService.getWeatherRecommendation(weatherData, preferences.tempScale)}
+                {weatherService.getWeatherRecommendation(weatherData, preferences.tempScale, preferences.humorEnabled)}
               </Typography>
             </Box>
           )}
@@ -251,53 +262,65 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
               <Box sx={{ mb: 2 }}>
                 <Autocomplete
                   value={selectedLocation}
-                  onChange={(_, newValue) => {
-                    if (newValue) setSelectedLocation(newValue);
+                  onChange={(event: any, newValue: string | null) => {
+                    setSelectedLocation(newValue || 'London');
                   }}
                   inputValue={selectedLocation}
-                  onInputChange={(_, newInputValue) => {
+                  onInputChange={(event, newInputValue) => {
                     setSelectedLocation(newInputValue);
                   }}
                   options={POPULAR_LOCATIONS}
                   freeSolo
                   renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Location"
-                      placeholder="Enter city name"
-                      fullWidth
-                      margin="normal"
-                    />
+                    <TextField {...params} label="Location" variant="outlined" fullWidth />
                   )}
                 />
               </Box>
               
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <Box sx={{ mb: 3 }}>
+                <FormControl fullWidth>
                   <InputLabel id="temp-scale-label">Temperature Scale</InputLabel>
-                  <Tooltip title="Learn about temperature scales">
-                    <IconButton 
-                      size="small" 
-                      onClick={handleOpenScaleInfo}
-                      sx={{ ml: 1 }}
-                    >
-                      <InfoIcon fontSize="small" color="info" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-                <Select
-                  labelId="temp-scale-label"
-                  value={selectedTempScale}
-                  label="Temperature Scale"
-                  onChange={(e: SelectChangeEvent<string>) => 
-                    setSelectedTempScale(e.target.value as TemperatureScale)
+                  <Select
+                    labelId="temp-scale-label"
+                    value={selectedTempScale}
+                    label="Temperature Scale"
+                    onChange={(e: SelectChangeEvent) => {
+                      setSelectedTempScale(e.target.value as TemperatureScale);
+                    }}
+                  >
+                    <MenuItem value="celsius">Celsius (°C)</MenuItem>
+                    <MenuItem value="fahrenheit">Fahrenheit (°F)</MenuItem>
+                    <MenuItem value="kelvin">Kelvin (K)</MenuItem>
+                  </Select>
+                  <Box sx={{ mt: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                    <Tooltip title="Learn about temperature scales">
+                      <IconButton 
+                        size="small" 
+                        onClick={handleOpenScaleInfo}
+                        aria-label="Temperature scale information"
+                      >
+                        <InfoIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </FormControl>
+              </Box>
+              
+              <Box sx={{ mb: 3 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={humorEnabled}
+                      onChange={(e) => setHumorEnabled(e.target.checked)}
+                      color="primary"
+                    />
                   }
-                >
-                  <MenuItem value="celsius">Celsius (°C)</MenuItem>
-                  <MenuItem value="fahrenheit">Fahrenheit (°F)</MenuItem>
-                  <MenuItem value="kelvin">Kelvin (K)</MenuItem>
-                </Select>
-              </FormControl>
+                  label="Neurodiverse Humor"
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Enable ADHD-friendly weather commentary with humor
+                </Typography>
+              </Box>
               
               <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                 <Button onClick={handleSettingsClose} sx={{ mr: 1 }}>
@@ -305,8 +328,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
                 </Button>
                 <Button 
                   variant="contained" 
+                  color="primary" 
                   onClick={handleSaveSettings}
-                  disabled={!selectedLocation}
                 >
                   Save
                 </Button>
@@ -318,55 +341,37 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false })
           <Dialog
             open={scaleInfoOpen}
             onClose={handleCloseScaleInfo}
-            maxWidth="md"
-            aria-labelledby="temperature-scales-dialog-title"
+            aria-labelledby="scale-info-dialog-title"
           >
-            <DialogTitle id="temperature-scales-dialog-title">
-              Temperature Scales Explained
+            <DialogTitle id="scale-info-dialog-title">
+              Temperature Scales
             </DialogTitle>
             <DialogContent dividers>
               {Object.entries(TEMPERATURE_SCALE_INFO).map(([scale, info]) => (
-                <Box key={scale} sx={{ mb: 4 }}>
-                  <Typography variant="h6" gutterBottom color="primary">
+                <Box key={scale} sx={{ mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
                     {info.name}
                   </Typography>
-                  
-                  <Typography variant="body1" paragraph>
+                  <Typography variant="body2" paragraph>
                     {info.description}
                   </Typography>
-                  
-                  <Typography variant="subtitle2" gutterBottom color="secondary">
-                    Interesting Facts:
+                  <Typography variant="subtitle2" gutterBottom>
+                    Fun Facts:
                   </Typography>
-                  
-                  <Box component="ul" sx={{ pl: 2 }}>
+                  <ul>
                     {info.funFacts.map((fact, index) => (
-                      <Typography component="li" key={index} variant="body2" paragraph>
-                        {fact}
-                      </Typography>
+                      <li key={index}>
+                        <Typography variant="body2">
+                          {fact}
+                        </Typography>
+                      </li>
                     ))}
-                  </Box>
+                  </ul>
                 </Box>
               ))}
-              
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle2" color="info.main">
-                  Conversion Formulas:
-                </Typography>
-                <Typography variant="body2" component="div">
-                  <ul>
-                    <li>Celsius to Fahrenheit: °F = (°C × 9/5) + 32</li>
-                    <li>Fahrenheit to Celsius: °C = (°F − 32) × 5/9</li>
-                    <li>Celsius to Kelvin: K = °C + 273.15</li>
-                    <li>Kelvin to Celsius: °C = K − 273.15</li>
-                    <li>Fahrenheit to Kelvin: K = (°F − 32) × 5/9 + 273.15</li>
-                    <li>Kelvin to Fahrenheit: °F = (K − 273.15) × 9/5 + 32</li>
-                  </ul>
-                </Typography>
-              </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={handleCloseScaleInfo} color="primary">
+              <Button onClick={handleCloseScaleInfo}>
                 Close
               </Button>
             </DialogActions>

@@ -18,6 +18,8 @@ A modern web application that combines email management with AI-powered assistan
   - Voice commands for email and calendar
   - Natural language processing
   - Hands-free operation
+  - Text-to-speech and speech-to-text capabilities
+  - Real-time AI conversations with voice or text input
 
 - 🔒 Authentication
   - Secure user authentication
@@ -39,6 +41,26 @@ A modern web application that combines email management with AI-powered assistan
   - MongoDB
   - JWT Authentication
 
+## Key Components
+
+### SpeakToMe AI Conversation
+
+The application features a powerful AI conversation system that allows users to interact with ASTI (the assistant) using either text or voice:
+
+- **Speech Recognition**: Users can speak directly to the assistant using their device's microphone
+- **Voice Recording**: Audio is sent to the backend for advanced processing
+- **Text-to-Speech**: ASTI's responses can be read aloud using browser speech synthesis
+- **Conversation History**: All conversations are saved and can be reviewed later
+- **Mock Mode**: Development environment can use mock responses for testing
+
+Example usage:
+1. Click the "SPEAK TO ME" button from the dashboard
+2. Enable microphone access when prompted
+3. Speak naturally to ASTI or type your message
+4. Receive AI-generated responses based on context and history
+
+The system uses a REST API to communicate with the backend AI service, which can be configured to use various AI models.
+
 ## Getting Started
 
 1. Clone the repository:
@@ -49,34 +71,18 @@ cd email-ai-app
 
 2. Install dependencies:
 ```bash
-# Install frontend dependencies
-cd frontend
-npm install
-
-# Install backend dependencies
-cd ../backend
 npm install
 ```
 
 3. Set up environment variables:
 ```bash
-# Frontend (.env.local)
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Backend (.env)
-PORT=3001
-MONGODB_URI=mongodb://localhost:27017/email-ai
-JWT_SECRET=your_jwt_secret
+# Create a .env file with the following:
+REACT_APP_AI_API_ENDPOINT=http://localhost:3001/api
+REACT_APP_USE_MOCK_AI=true  # For development without a backend
 ```
 
-4. Start the development servers:
+4. Start the development server:
 ```bash
-# Start backend server
-cd backend
-npm run dev
-
-# Start frontend server
-cd frontend
 npm run dev
 ```
 
@@ -86,25 +92,21 @@ npm run dev
 
 ```
 email-ai-app/
-├── frontend/
-│   ├── src/
-│   │   ├── app/              # Next.js app directory
-│   │   │   ├── components/       # React components
-│   │   │   ├── contexts/        # React contexts
-│   │   │   ├── services/        # API services
-│   │   │   └── theme/           # Material-UI theme
-│   │   ├── public/              # Static assets
-│   │   └── package.json
-│   ├── backend/
-│   │   ├── src/
-│   │   │   ├── config/          # Configuration files
-│   │   │   ├── controllers/     # Route controllers
-│   │   │   ├── middleware/      # Custom middleware
-│   │   │   ├── models/          # Database models
-│   │   │   ├── routes/          # API routes
-│   │   │   └── services/        # Business logic
-│   │   └── package.json
-│   └── README.md
+├── public/
+│   └── assets/              # Static assets
+├── src/
+│   ├── components/          # React components
+│   │   ├── Conversation/    # Voice and chat components
+│   │   ├── Dashboard/       # Dashboard components
+│   │   ├── Email/           # Email management
+│   │   ├── Navigation/      # Navigation components
+│   │   ├── Onboarding/      # User onboarding
+│   │   └── Weather/         # Weather widget
+│   ├── contexts/            # React contexts
+│   ├── hooks/               # Custom hooks
+│   ├── pages/               # Page components
+│   └── services/            # API services
+└── package.json
 ```
 
 ## Contributing
@@ -117,4 +119,4 @@ email-ai-app/
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

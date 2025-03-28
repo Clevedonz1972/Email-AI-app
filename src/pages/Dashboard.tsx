@@ -33,6 +33,8 @@ import WelcomeMessage from '@/components/Welcome/WelcomeMessage';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { DailyBrief } from '@/components/Dashboard/DailyBrief';
 import { WeatherWidget } from '@/components/Weather/WeatherWidget';
+import { OnboardingTutorial } from '@/components/Onboarding/OnboardingTutorial';
+import SpeakToMe from '@/components/Conversation/SpeakToMe';
 
 // Support dialog component
 const SupportDialog: React.FC<{
@@ -212,6 +214,11 @@ const Dashboard: React.FC = () => {
   const { emails, loading, error: emailError, refreshEmails } = useEmailContext();
   
   const [date, setDate] = useState(new Date());
+  const [showTour, setShowTour] = useState(false);
+  const [isNewUser, setIsNewUser] = useState<boolean>(() => {
+    return localStorage.getItem('onboardingComplete') !== 'true';
+  });
+  const [showSpeakToMe, setShowSpeakToMe] = useState(false);
   
   // Set current date
   useEffect(() => {
@@ -244,6 +251,14 @@ const Dashboard: React.FC = () => {
     refreshEmails();
   }, [refreshEmails]);
 
+  // Check if user is new and show onboarding
+  useEffect(() => {
+    if (isNewUser) {
+      // Show onboarding for new users
+      setShowTour(true);
+    }
+  }, [isNewUser]);
+
   // Handle opening support dialog
   const handleOpenSupportDialog = () => {
     setSupportDialogOpen(true);
@@ -254,11 +269,34 @@ const Dashboard: React.FC = () => {
     setSupportDialogOpen(false);
   };
 
+  // Handle opening SpeakToMe dialog
+  const handleOpenSpeakToMe = () => {
+    setShowSpeakToMe(true);
+  };
+  
+  // Handle closing SpeakToMe dialog
+  const handleCloseSpeakToMe = () => {
+    setShowSpeakToMe(false);
+  };
+
   // Handle navigation to app dashboards
   const handleNavigate = (path: string) => {
     navigate(path);
   };
   
+  // Handle tour start
+  const handleStartTour = () => {
+    setShowTour(true);
+  };
+  
+  // Handle tour completion
+  const handleTourComplete = () => {
+    setShowTour(false);
+    // Mark onboarding as complete
+    localStorage.setItem('onboardingComplete', 'true');
+    setIsNewUser(false);
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#222', position: 'relative' }}>
       <Navbar />
@@ -267,10 +305,17 @@ const Dashboard: React.FC = () => {
         {/* Welcome message */}
         {showWelcome && (
           <WelcomeMessage 
-            onStartTour={() => {}} 
+            onStartTour={handleStartTour} 
             onDismiss={() => setShowWelcome(false)} 
           />
         )}
+        
+        {/* Onboarding Tour */}
+        <OnboardingTutorial
+          open={showTour}
+          onComplete={handleTourComplete}
+          onClose={handleTourComplete}
+        />
         
         {/* Error display */}
         {error && (
@@ -292,7 +337,7 @@ const Dashboard: React.FC = () => {
           />
         </Box>
         
-        {/* Action Buttons - Only SPEAK TO ME button */}
+        {/* Action Buttons - SPEAK TO ME button */}
         <Box 
           sx={{ 
             display: 'flex', 
@@ -306,6 +351,7 @@ const Dashboard: React.FC = () => {
             color="secondary"
             startIcon={<MicIcon />}
             sx={{ borderRadius: 28, px: 3 }}
+            onClick={handleOpenSpeakToMe}
           >
             SPEAK TO ME
           </Button>
@@ -648,6 +694,12 @@ const Dashboard: React.FC = () => {
       <SupportDialog 
         open={supportDialogOpen}
         onClose={handleCloseSupportDialog}
+      />
+
+      {/* SpeakToMe Component */}
+      <SpeakToMe
+        open={showSpeakToMe}
+        onClose={handleCloseSpeakToMe}
       />
     </Box>
   );
