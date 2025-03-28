@@ -15,8 +15,6 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
-  LocationOn as LocationIcon,
-  Cloud as CloudIcon,
   Email as EmailIcon,
   Chat as ChatIcon,
   Phone as PhoneIcon,
@@ -34,6 +32,7 @@ import { useEmailContext } from '@/contexts/EmailContext';
 import WelcomeMessage from '@/components/Welcome/WelcomeMessage';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { DailyBrief } from '@/components/Dashboard/DailyBrief';
+import { WeatherWidget } from '@/components/Weather/WeatherWidget';
 
 // Support dialog component
 const SupportDialog: React.FC<{
@@ -280,36 +279,8 @@ const Dashboard: React.FC = () => {
           </Alert>
         )}
         
-        {/* Weather and Location Bar */}
-        <Paper 
-          sx={{ 
-            p: 1, 
-            mb: 3, 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            bgcolor: '#333',
-            color: '#fff'
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <LocationIcon sx={{ mr: 0.5, color: '#fff' }} />
-            <Typography variant="body1" sx={{ mr: 2, color: '#fff' }}>London, UK</Typography>
-            <CloudIcon sx={{ mr: 0.5, color: '#ccc' }} />
-            <Typography variant="body1" sx={{ color: '#fff' }}>15°C Cloudy</Typography>
-          </Box>
-          
-          <Box>
-            <Typography variant="body2" sx={{ color: '#ccc' }}>
-              A bit cool today. Maybe bring a light jacket! 🧥
-            </Typography>
-          </Box>
-          
-          <Typography variant="body2" sx={{ color: '#ccc' }}>
-            {formattedDate}
-          </Typography>
-        </Paper>
+        {/* Weather widget */}
+        <WeatherWidget />
         
         {/* Daily Brief Section */}
         <Box mb={4}>

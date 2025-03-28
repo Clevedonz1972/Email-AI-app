@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Grid, Paper, Typography, useTheme, CircularProgress } from '@mui/material';
+import { Box, Grid, Paper, Typography, useTheme, CircularProgress, Breadcrumbs, Link, Button } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import { EmailList } from '../EmailList/EmailList';
 import { StressLevelIndicator } from './StressLevelIndicator';
 import { CategoryManager } from './CategoryManager';
 import { AnalyticsSummary } from './AnalyticsSummary';
+import { WeatherWidget } from '../Weather/WeatherWidget';
 import { useEmailContext } from '@/contexts/EmailContext';
-import { SensorySettings } from '../Settings/SensorySettings';
+import HomeIcon from '@mui/icons-material/Home';
+import EmailIcon from '@mui/icons-material/Email';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import type { EmailMessage, StressLevel } from '@/types/email';
 
 const DashboardContainer = styled(Box)(({ theme }) => ({
@@ -35,6 +39,7 @@ const Section = styled(Paper)(({ theme }) => ({
 
 export const EmailDashboard: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { emails, loading, error, fetchEmails, refreshEmails } = useEmailContext();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentStressLevel, setCurrentStressLevel] = useState<StressLevel>('HIGH');
@@ -68,6 +73,10 @@ export const EmailDashboard: React.FC = () => {
     console.log('Flag email:', id);
   };
 
+  const handleBackToDashboard = () => {
+    navigate('/dashboard');
+  };
+
   if (error) {
     return (
       <Box p={3} textAlign="center">
@@ -83,15 +92,42 @@ export const EmailDashboard: React.FC = () => {
 
   return (
     <Box sx={{ flexGrow: 1, p: 3 }}>
+      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Breadcrumbs aria-label="breadcrumb">
+          <Link
+            sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+            color="inherit"
+            onClick={handleBackToDashboard}
+          >
+            <HomeIcon sx={{ mr: 0.5 }} fontSize="small" />
+            Dashboard
+          </Link>
+          <Typography
+            sx={{ display: 'flex', alignItems: 'center' }}
+            color="text.primary"
+          >
+            <EmailIcon sx={{ mr: 0.5 }} fontSize="small" />
+            Email Dashboard
+          </Typography>
+        </Breadcrumbs>
+        
+        <Button
+          variant="outlined"
+          startIcon={<ArrowBackIcon />}
+          onClick={handleBackToDashboard}
+        >
+          Back to Dashboard
+        </Button>
+      </Box>
+      
+      {/* Weather Widget - Compact version */}
+      <WeatherWidget compact={true} />
+      
       <Typography variant="h4" gutterBottom>
         Email Dashboard
       </Typography>
       
       <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <SensorySettings />
-        </Grid>
-        
         <Grid item xs={12}>
           <Paper sx={{ p: 2 }}>
             <StressLevelIndicator level={currentStressLevel} />

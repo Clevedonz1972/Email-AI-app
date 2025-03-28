@@ -31,6 +31,7 @@ import StoreIcon from '@mui/icons-material/Store';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
+import { AstiEasterEgg } from '../Branding/AstiEasterEgg';
 
 export const Navbar: React.FC = () => {
   const { isAuthenticated, logout, user } = useAuth();
@@ -39,6 +40,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [astiEasterEggOpen, setAstiEasterEggOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -78,6 +80,22 @@ export const Navbar: React.FC = () => {
   const handleNavigation = (path: string) => {
     navigate(path);
     setDrawerOpen(false);
+  };
+  
+  const handleAstiLogoClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setAstiEasterEggOpen(true);
+    
+    // Still allow navigation if needed
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
+    }
+  };
+  
+  const handleAstiEasterEggClose = () => {
+    setAstiEasterEggOpen(false);
   };
 
   const menuItems = [
@@ -166,15 +184,20 @@ export const Navbar: React.FC = () => {
         
         <Typography 
           variant="h6" 
-          component={RouterLink} 
-          to={isAuthenticated ? '/dashboard' : '/'} 
+          component="div" 
+          onClick={handleAstiLogoClick}
           sx={{ 
             flexGrow: 1, 
             textDecoration: 'none', 
             color: 'inherit',
             display: 'flex',
             alignItems: 'center',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            '&:hover': {
+              textDecoration: 'none',
+              opacity: 0.9
+            }
           }}
         >
           ASTI
@@ -256,6 +279,9 @@ export const Navbar: React.FC = () => {
           </List>
         </Box>
       </Drawer>
+      
+      {/* Asti Easter Egg */}
+      <AstiEasterEgg open={astiEasterEggOpen} onClose={handleAstiEasterEggClose} />
     </AppBar>
   );
 }; 
