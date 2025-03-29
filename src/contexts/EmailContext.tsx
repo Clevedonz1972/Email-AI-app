@@ -15,11 +15,12 @@ export interface EmailContextType {
   selectedEmail: EmailMessage | null;
   setSelectedEmail: (email: EmailMessage | null) => void;
   processEmails: (emails: EmailMessage[]) => Promise<EmailMessage[]>;
-  fetchEmails: (params: { category: string; stressLevel: StressLevel | 'ALL' }) => Promise<void>;
+  fetchEmails: (params: { category: string; stressLevel: StressLevel | 'ALL'; filter?: string }) => Promise<void>;
   refreshEmails: () => Promise<void>;
   getStressReport: () => Promise<void>;
   stressReport: any | null;
   stressReportLoading: boolean;
+  markAllAsRead: () => Promise<void>;
 }
 
 // Default stats to prevent undefined errors
@@ -53,7 +54,7 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
   const [stressReport, setStressReport] = useState<any | null>(null);
   const [stressReportLoading, setStressReportLoading] = useState(false);
-  const [lastParams, setLastParams] = useState<{ category: string; stressLevel: StressLevel | 'ALL' }>({
+  const [lastParams, setLastParams] = useState<{ category: string; stressLevel: StressLevel | 'ALL'; filter?: string }>({
     category: 'all',
     stressLevel: 'ALL'
   });
@@ -109,15 +110,22 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [emails]);
 
   // Fetch emails from the API
-  const fetchEmails = useCallback(async (params: { category: string; stressLevel: StressLevel | 'ALL' }) => {
+  const fetchEmails = useCallback(async (params: { category: string; stressLevel: StressLevel | 'ALL'; filter?: string }) => {
     setLoading(true);
     setError(null);
     setLastParams(params);
     
     try {
-      // Attempt to fetch emails from the API
-      // The emailService will handle API errors and fallback to mock data if needed
-      const fetchedEmails = await emailService.getTestEmails();
+      let fetchedEmails;
+      
+      // Handle special filter for action required (check both filter param and category)
+      if (params.filter === 'action_required' || params.category === 'action_required') {
+        fetchedEmails = await emailService.getEmailsRequiringAction();
+      } else {
+        // Normal flow - attempt to fetch emails from the API
+        // The emailService will handle API errors and fallback to mock data if needed
+        fetchedEmails = await emailService.getTestEmails();
+      }
       
       // Update state with the fetched emails (either real or mock)
       setEmails(fetchedEmails);
@@ -164,11 +172,13 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Fallback mock stress report
       setStressReport({
         overallStress: 'MEDIUM',
+        overall_score: 0.5,
         needsBreak: false,
         recommendations: [
           'Consider taking short breaks between checking high-stress emails',
           'Try to batch process similar emails to reduce context switching'
         ],
+        daily_trend: [0.3, 0.4, 0.6, 0.5, 0.5],
         stressBreakdown: {
           high: 2,
           medium: 5,
@@ -179,6 +189,33 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setStressReportLoading(false);
     }
   }, []);
+
+  // Mark all emails as read
+  const markAllAsRead = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Update all emails to read status
+      const updatedEmails = emails.map(email => ({
+        ...email,
+        is_read: true
+      }));
+      
+      // Update state
+      setEmails(updatedEmails);
+      
+      // In a real implementation, we would also call the API to update the status
+      // await emailService.markAllAsRead();
+      
+      logger.info('Marked all emails as read');
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to mark emails as read';
+      console.error('Error marking emails as read:', errorMessage);
+      logger.error(new Error(errorMessage));
+      setError('Error marking emails as read. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [emails]);
 
   // Process emails with AI
   const processEmails = useCallback(async (emailsToProcess: EmailMessage[]) => {
@@ -263,7 +300,8 @@ export const EmailProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     refreshEmails,
     getStressReport,
     stressReport,
-    stressReportLoading
+    stressReportLoading,
+    markAllAsRead
   };
 
   return (

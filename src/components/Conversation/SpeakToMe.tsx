@@ -25,7 +25,8 @@ import {
   Switch,
   FormControlLabel,
   SelectChangeEvent,
-  keyframes
+  keyframes,
+  Badge
 } from '@mui/material';
 import {
   Mic as MicIcon,
@@ -33,10 +34,11 @@ import {
   Send as SendIcon,
   VolumeUp as SpeakIcon,
   Delete as DeleteIcon,
-  RestartAlt as ResetIcon,
   Settings as SettingsIcon,
   Refresh as RefreshIcon,
-  RadioButtonChecked as ContinuousMicIcon
+  RadioButtonChecked as ContinuousMicIcon,
+  Videocam as VideocamIcon,
+  VideocamOff as VideocamOffIcon
 } from '@mui/icons-material';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { aiService, ConversationMessage, OpenAIVoice } from '@/services/aiService';
@@ -140,6 +142,13 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
   const speechRecognition = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  
+  // Gesture mode
+  const [gestureMode, setGestureMode] = useLocalStorage<boolean>('asti-gesture-mode', false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const gestureTimeoutRef = useRef<number | null>(null);
   
   // Initialize speech recognition
   useEffect(() => {
@@ -247,6 +256,156 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
     
     checkConnection();
   }, [open, useMockResponses]);
+  
+  // Initialize gesture detection
+  useEffect(() => {
+    if (!open || !gestureMode) return;
+    
+    let videoStream: MediaStream | null = null;
+    
+    const startCamera = async () => {
+      try {
+        // Request camera access
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 320 },
+            height: { ideal: 240 }
+          } 
+        });
+        
+        // Store reference to local variable
+        const videoElement = videoRef.current;
+        
+        // Set video stream
+        if (videoElement) {
+          videoElement.srcObject = stream;
+        }
+        
+        videoStream = stream;
+        setCameraActive(true);
+        
+        // Start motion detection after camera is ready
+        videoElement?.addEventListener('loadeddata', startMotionDetection);
+      } catch (error) {
+        console.error('Error accessing camera:', error);
+        setError('Unable to access the camera. Please check your browser permissions.');
+        setGestureMode(false);
+      }
+    };
+    
+    // Motion detection algorithm
+    const startMotionDetection = () => {
+      if (!videoRef.current || !canvasRef.current) return;
+      
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      if (!context) return;
+      
+      // Set canvas size
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      let previousImageData: ImageData | null = null;
+      
+      // Function to detect motion
+      const detectMotion = () => {
+        if (!context || !video || !canvas) return;
+        
+        // Draw current video frame to canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get current frame data
+        const currentImageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        
+        if (previousImageData) {
+          // Compare with previous frame to detect motion
+          const motionScore = calculateMotion(previousImageData, currentImageData);
+          
+          // If significant motion detected
+          if (motionScore > 20 && !isListening && !isThinking && !isSpeaking) {
+            // Debounce to prevent multiple triggers
+            if (gestureTimeoutRef.current === null) {
+              gestureTimeoutRef.current = window.setTimeout(() => {
+                // Directly manipulate state instead of calling toggleListening
+                if (!isListening) {
+                  speechRecognition.current?.start();
+                  startAudioRecording();
+                  setIsListening(true);
+                }
+                gestureTimeoutRef.current = null;
+              }, 300);
+            }
+          }
+        }
+        
+        previousImageData = currentImageData;
+        
+        // Continue detection if gesture mode is still active
+        if (gestureMode && cameraActive) {
+          requestAnimationFrame(detectMotion);
+        }
+      };
+      
+      // Start detection loop
+      detectMotion();
+    };
+    
+    // Calculate amount of motion between two frames
+    const calculateMotion = (prev: ImageData, curr: ImageData): number => {
+      const data1 = prev.data;
+      const data2 = curr.data;
+      let score = 0;
+      const threshold = 30;
+      const skip = 10; // Skip pixels for performance
+      
+      // Compare pixels to detect changes
+      for (let i = 0; i < data1.length; i += skip * 4) {
+        const r1 = data1[i];
+        const g1 = data1[i + 1];
+        const b1 = data1[i + 2];
+        
+        const r2 = data2[i];
+        const g2 = data2[i + 1];
+        const b2 = data2[i + 2];
+        
+        // Calculate difference in pixel values
+        const diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+        
+        // Count significant changes
+        if (diff > threshold) {
+          score++;
+        }
+      }
+      
+      return score;
+    };
+    
+    // Start camera if gesture mode is enabled
+    if (gestureMode) {
+      startCamera();
+    }
+    
+    // Cleanup function
+    return () => {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+      }
+      
+      setCameraActive(false);
+      
+      if (gestureTimeoutRef.current) {
+        clearTimeout(gestureTimeoutRef.current);
+        gestureTimeoutRef.current = null;
+      }
+      
+      // Store reference in local variable
+      const videoElement = videoRef.current;
+      videoElement?.removeEventListener('loadeddata', startMotionDetection);
+    };
+  }, [open, gestureMode, isListening, isThinking, isSpeaking, setGestureMode]);
   
   // Add a user message to the conversation
   const addUserMessage = async (text: string) => {
@@ -445,6 +604,11 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
     }
   };
   
+  // Toggle gesture mode
+  const toggleGestureMode = () => {
+    setGestureMode(!gestureMode);
+  };
+  
   // Handle sending a message
   const handleSendMessage = () => {
     if (!inputText.trim()) return;
@@ -583,6 +747,24 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
                 />
               </Tooltip>
             )}
+            
+            {/* Gesture mode toggle */}
+            <Tooltip title={gestureMode ? "Disable gesture control" : "Enable gesture control"}>
+              <IconButton 
+                onClick={toggleGestureMode}
+                color={gestureMode ? "secondary" : "default"}
+                sx={{ mr: 1 }}
+              >
+                <Badge
+                  variant="dot"
+                  color="secondary"
+                  invisible={!cameraActive}
+                >
+                  {gestureMode ? <VideocamIcon /> : <VideocamOffIcon />}
+                </Badge>
+              </IconButton>
+            </Tooltip>
+            
             <Tooltip title="Conversation Settings">
               <IconButton onClick={() => setShowSettings(!showSettings)}>
                 <SettingsIcon />
@@ -642,6 +824,20 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
               />
               <Typography variant="caption" sx={{ display: 'block', mt: -0.5, mb: 2 }}>
                 Enables natural back-and-forth without pressing the mic button repeatedly
+              </Typography>
+              
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={gestureMode} 
+                    onChange={toggleGestureMode}
+                    color="secondary"
+                  />
+                }
+                label="Gesture Control"
+              />
+              <Typography variant="caption" sx={{ display: 'block', mt: -0.5, mb: 2 }}>
+                Wave your hand to start listening (requires camera access)
               </Typography>
               
               <FormControlLabel
@@ -742,7 +938,8 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
           p: 2, 
           bgcolor: theme.palette.background.paper,
           borderRadius: 1,
-          boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)'
+          boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)',
+          position: 'relative'
         }}>
           {messages.length === 0 ? (
             <Box 
@@ -841,6 +1038,19 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
           
           <div ref={messagesEndRef} />
         </Box>
+        
+        {/* Hidden video for gesture detection */}
+        {gestureMode && (
+          <Box sx={{ position: 'fixed', top: '-9999px', left: '-9999px', visibility: 'hidden' }}>
+            <video
+              ref={videoRef}
+              autoPlay={true}
+              playsInline={true}
+              muted={true}
+            />
+            <canvas ref={canvasRef} />
+          </Box>
+        )}
       </DialogContent>
       
       <DialogActions sx={{ 
@@ -979,6 +1189,30 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
               <span>Continuous mode active. Waiting...</span>
             </>
           )}
+        </Box>
+      )}
+      
+      {/* Status indicator for gesture mode */}
+      {gestureMode && cameraActive && !isListening && !isThinking && !isSpeaking && (
+        <Box 
+          sx={{ 
+            position: 'absolute', 
+            top: 80, 
+            right: 24,
+            bgcolor: 'rgba(0,0,0,0.6)',
+            color: 'white',
+            px: 2,
+            py: 0.5,
+            borderRadius: 4,
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            zIndex: 1000
+          }}
+        >
+          <VideocamIcon fontSize="small" />
+          <span>Wave to activate</span>
         </Box>
       )}
     </Dialog>

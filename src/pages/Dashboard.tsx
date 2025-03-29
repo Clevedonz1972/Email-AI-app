@@ -12,6 +12,7 @@ import {
   useMediaQuery,
   Dialog,
   DialogContent,
+  CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -35,42 +36,165 @@ import { DailyBrief } from '@/components/Dashboard/DailyBrief';
 import { WeatherWidget } from '@/components/Weather/WeatherWidget';
 import { OnboardingTutorial } from '@/components/Onboarding/OnboardingTutorial';
 import SpeakToMe from '@/components/Conversation/SpeakToMe';
+import QuickCalendar from '@/components/Dashboard/Calendar/QuickCalendar';
+import { calendarService, CalendarEvent } from '@/services/calendarService';
 
 // Support dialog component
 const SupportDialog: React.FC<{
   open: boolean;
   onClose: () => void;
-}> = ({ open, onClose }) => {
+  onOpenSpeakToMe: () => void;
+}> = ({ open, onClose, onOpenSpeakToMe }) => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  const [breatheMode, setBreatheMode] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  
+  useEffect(() => {
+    if (breatheMode && countdown > 0) {
+      const timer = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (breatheMode && countdown === 0) {
+      setBreatheMode(false);
+      setCountdown(5);
+    }
+  }, [breatheMode, countdown]);
+  
+  const startBreathingExercise = () => {
+    setBreatheMode(true);
+    setCountdown(5);
+  };
+  
+  const BreatheAnimation = () => (
+    <Box 
+      sx={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        height: 300,
+        width: '100%',
+        position: 'relative',
+      }}
+    >
+      <Box
+        sx={{
+          width: 200,
+          height: 200,
+          borderRadius: '50%',
+          backgroundColor: 'rgba(100, 200, 255, 0.2)',
+          animation: 'breathe 8s infinite ease-in-out',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 0 30px rgba(100, 200, 255, 0.5)',
+          '@keyframes breathe': {
+            '0%, 100%': {
+              transform: 'scale(0.8)',
+              backgroundColor: 'rgba(100, 200, 255, 0.2)',
+            },
+            '50%': {
+              transform: 'scale(1.2)',
+              backgroundColor: 'rgba(100, 200, 255, 0.5)',
+            },
+          },
+        }}
+      >
+        <Typography variant="h6" sx={{ color: isDarkMode ? '#fff' : '#333' }}>
+          {countdown > 0 ? `${countdown}` : 'Breathe In... Out...'}
+        </Typography>
+      </Box>
+      <Typography 
+        variant="body1" 
+        sx={{ 
+          position: 'absolute', 
+          bottom: 20,
+          color: isDarkMode ? '#fff' : '#333'
+        }}
+      >
+        Focus on your breathing for a moment
+      </Typography>
+    </Box>
+  );
+  
+  if (breatheMode) {
+    return (
+      <Dialog 
+        open={open} 
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            bgcolor: isDarkMode ? 'rgba(30, 30, 30, 0.95)' : 'rgba(245, 245, 245, 0.95)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            borderRadius: 3,
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 4 }}>
+          <Box sx={{ position: 'absolute', top: 10, right: 10 }}>
+            <IconButton onClick={() => setBreatheMode(false)}>
+              <MicIcon />
+            </IconButton>
+          </Box>
+          <BreatheAnimation />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog 
       open={open} 
       onClose={onClose}
       maxWidth="md"
       fullWidth
+      PaperProps={{
+        sx: {
+          bgcolor: isDarkMode ? 'rgba(30, 30, 30, 0.95)' : 'rgba(245, 245, 245, 0.95)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+          borderRadius: 3,
+        }
+      }}
     >
-      <DialogContent sx={{ p: 4, background: 'rgba(245, 245, 245, 0.9)' }}>
+      <DialogContent sx={{ p: 4 }}>
         <Box sx={{ position: 'absolute', top: 10, right: 10 }}>
           <IconButton onClick={onClose}>
             <MicIcon />
           </IconButton>
         </Box>
         
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
           What do you need right now?
         </Typography>
         
-        <Typography variant="body1" sx={{ mb: 4 }}>
+        <Typography variant="body1" sx={{ mb: 4, color: isDarkMode ? '#ccc' : 'inherit' }}>
           It's okay to need support. Choose the option that feels right for you in this moment.
         </Typography>
         
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(200, 230, 255, 0.7)' }}>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                height: '100%', 
+                bgcolor: isDarkMode ? 'rgba(40, 80, 120, 0.7)' : 'rgba(200, 230, 255, 0.7)',
+                borderRadius: 2,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                }
+              }}
+            >
               <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
                   <Box 
                     sx={{ 
-                      bgcolor: '#b3e0ff', 
+                      bgcolor: isDarkMode ? 'rgba(100, 200, 255, 0.2)' : '#b3e0ff', 
                       borderRadius: '50%', 
                       width: 50, 
                       height: 50,
@@ -80,26 +204,38 @@ const SupportDialog: React.FC<{
                       mr: 2
                     }}
                   >
-                    <MicIcon sx={{ color: '#0066cc' }} />
+                    <MicIcon sx={{ color: isDarkMode ? '#80ccff' : '#0066cc' }} />
                   </Box>
-                  <Typography variant="h5">
-                    Talk to Me
+                  <Typography variant="h5" sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
+                    Talk to AI
                   </Typography>
                 </Box>
                 
-                <Typography component="div" sx={{ mb: 3, flexGrow: 1 }}>
+                <Typography 
+                  component="div" 
+                  sx={{ 
+                    mb: 3, 
+                    flexGrow: 1, 
+                    color: isDarkMode ? '#ddd' : 'inherit'
+                  }}
+                >
                   Have a private conversation with AI to process your thoughts and get immediate support without judgment.
                 </Typography>
                 
                 <Button 
                   variant="contained" 
                   fullWidth
+                  onClick={() => {
+                    onClose();
+                    // Open SpeakToMe dialog
+                    setTimeout(() => onOpenSpeakToMe(), 100);
+                  }}
                   sx={{ 
                     mt: 'auto', 
-                    bgcolor: '#b3e0ff', 
-                    color: '#0066cc',
+                    bgcolor: isDarkMode ? 'rgba(100, 200, 255, 0.3)' : '#b3e0ff', 
+                    color: isDarkMode ? '#fff' : '#0066cc',
                     '&:hover': {
-                      bgcolor: '#80ccff',
+                      bgcolor: isDarkMode ? 'rgba(100, 200, 255, 0.5)' : '#80ccff',
                     } 
                   }}
                 >
@@ -110,12 +246,24 @@ const SupportDialog: React.FC<{
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(200, 255, 200, 0.7)' }}>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                height: '100%', 
+                bgcolor: isDarkMode ? 'rgba(40, 120, 80, 0.7)' : 'rgba(200, 255, 200, 0.7)',
+                borderRadius: 2,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                }
+              }}
+            >
               <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
                   <Box 
                     sx={{ 
-                      bgcolor: '#b3ffb3', 
+                      bgcolor: isDarkMode ? 'rgba(100, 255, 150, 0.2)' : '#b3ffb3', 
                       borderRadius: '50%', 
                       width: 50, 
                       height: 50,
@@ -125,42 +273,62 @@ const SupportDialog: React.FC<{
                       mr: 2
                     }}
                   >
-                    <EmailIcon sx={{ color: '#008800' }} />
+                    <EmailIcon sx={{ color: isDarkMode ? '#80ff80' : '#008800' }} />
                   </Box>
-                  <Typography variant="h5">
-                    Reach Out
+                  <Typography variant="h5" sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
+                    Pause Notifications
                   </Typography>
                 </Box>
                 
-                <Typography component="div" sx={{ mb: 3, flexGrow: 1 }}>
-                  Connect with someone in your support network. We'll help craft the message so you don't have to find the words.
+                <Typography 
+                  component="div" 
+                  sx={{ 
+                    mb: 3, 
+                    flexGrow: 1,
+                    color: isDarkMode ? '#ddd' : 'inherit'
+                  }}
+                >
+                  Take a break from all notifications for a set period of time. We'll handle auto-replies and collect messages.
                 </Typography>
                 
                 <Button 
                   variant="contained" 
                   fullWidth
+                  onClick={startBreathingExercise}
                   sx={{ 
                     mt: 'auto', 
-                    bgcolor: '#b3ffb3', 
-                    color: '#008800',
+                    bgcolor: isDarkMode ? 'rgba(100, 255, 150, 0.3)' : '#b3ffb3', 
+                    color: isDarkMode ? '#fff' : '#008800',
                     '&:hover': {
-                      bgcolor: '#80ff80',
+                      bgcolor: isDarkMode ? 'rgba(100, 255, 150, 0.5)' : '#80ff80',
                     } 
                   }}
                 >
-                  Get Help Template
+                  Pause for 30 Minutes
                 </Button>
               </Box>
             </Paper>
           </Grid>
           
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3, height: '100%', bgcolor: 'rgba(255, 200, 200, 0.7)' }}>
+            <Paper 
+              sx={{ 
+                p: 3, 
+                height: '100%', 
+                bgcolor: isDarkMode ? 'rgba(120, 40, 80, 0.7)' : 'rgba(255, 200, 200, 0.7)',
+                borderRadius: 2,
+                transition: 'transform 0.2s, box-shadow 0.2s',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
+                }
+              }}
+            >
               <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                 <Box sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
                   <Box 
                     sx={{ 
-                      bgcolor: '#ffb3b3', 
+                      bgcolor: isDarkMode ? 'rgba(255, 150, 150, 0.2)' : '#ffb3b3', 
                       borderRadius: '50%', 
                       width: 50, 
                       height: 50,
@@ -170,30 +338,38 @@ const SupportDialog: React.FC<{
                       mr: 2
                     }}
                   >
-                    <WarningIcon sx={{ color: '#cc0000' }} />
+                    <WellbeingIcon sx={{ color: isDarkMode ? '#ff8080' : '#cc0000' }} />
                   </Box>
-                  <Typography variant="h5">
-                    I Need Space
+                  <Typography variant="h5" sx={{ color: isDarkMode ? '#fff' : 'inherit' }}>
+                    Guided Breathing
                   </Typography>
                 </Box>
                 
-                <Typography component="div" sx={{ mb: 3, flexGrow: 1 }}>
-                  Activate "do not disturb" mode, send automated responses, and get guided through a calming break.
+                <Typography 
+                  component="div" 
+                  sx={{ 
+                    mb: 3, 
+                    flexGrow: 1,
+                    color: isDarkMode ? '#ddd' : 'inherit'
+                  }}
+                >
+                  Take a moment to breathe and recenter with our guided breathing exercise. Just 2 minutes can help reduce stress.
                 </Typography>
                 
                 <Button 
                   variant="contained" 
                   fullWidth
+                  onClick={startBreathingExercise}
                   sx={{ 
                     mt: 'auto', 
-                    bgcolor: '#ffb3b3', 
-                    color: '#cc0000',
+                    bgcolor: isDarkMode ? 'rgba(255, 150, 150, 0.3)' : '#ffb3b3', 
+                    color: isDarkMode ? '#fff' : '#cc0000',
                     '&:hover': {
-                      bgcolor: '#ff8080',
+                      bgcolor: isDarkMode ? 'rgba(255, 150, 150, 0.5)' : '#ff8080',
                     } 
                   }}
                 >
-                  Activate Break Mode
+                  Start Breathing Exercise
                 </Button>
               </Box>
             </Paper>
@@ -211,7 +387,7 @@ const Dashboard: React.FC = () => {
   const [showWelcome, setShowWelcome] = useLocalStorage('showWelcomeMessage', true);
   const [supportDialogOpen, setSupportDialogOpen] = useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { emails, loading, error: emailError, refreshEmails } = useEmailContext();
+  const { emails, loading, error: emailError, refreshEmails, getStressReport, stressReport, stressReportLoading } = useEmailContext();
   
   const [date, setDate] = useState(new Date());
   const [showTour, setShowTour] = useState(false);
@@ -219,6 +395,8 @@ const Dashboard: React.FC = () => {
     return localStorage.getItem('onboardingComplete') !== 'true';
   });
   const [showSpeakToMe, setShowSpeakToMe] = useState(false);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(true);
   
   // Set current date
   useEffect(() => {
@@ -258,6 +436,28 @@ const Dashboard: React.FC = () => {
       setShowTour(true);
     }
   }, [isNewUser]);
+
+  useEffect(() => {
+    // Fetch stress report on component mount
+    getStressReport();
+  }, [getStressReport]);
+
+  // Fetch calendar events
+  useEffect(() => {
+    const fetchCalendarEvents = async () => {
+      setCalendarLoading(true);
+      try {
+        const events = await calendarService.getTodayEvents();
+        setCalendarEvents(events);
+      } catch (err) {
+        console.error('Error fetching calendar events:', err);
+      } finally {
+        setCalendarLoading(false);
+      }
+    };
+    
+    fetchCalendarEvents();
+  }, []);
 
   // Handle opening support dialog
   const handleOpenSupportDialog = () => {
@@ -485,6 +685,30 @@ const Dashboard: React.FC = () => {
           </Grid>
         </Grid>
 
+        {/* Calendar Section */}
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            mb: 2, 
+            color: '#3b82f6',
+            fontWeight: 'bold'
+          }}
+        >
+          Calendar
+        </Typography>
+
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} md={6}>
+            {calendarLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+                <CircularProgress sx={{ color: '#3b82f6' }} />
+              </Box>
+            ) : (
+              <QuickCalendar events={calendarEvents} />
+            )}
+          </Grid>
+        </Grid>
+
         {/* Financial Section */}
         <Typography 
           variant="h6" 
@@ -557,6 +781,7 @@ const Dashboard: React.FC = () => {
                 bgcolor: '#333',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease-in-out',
+                overflow: 'hidden',
                 '&:hover': {
                   bgcolor: '#444',
                   transform: 'translateY(-2px)'
@@ -569,21 +794,99 @@ const Dashboard: React.FC = () => {
                   p: 2, 
                   display: 'flex', 
                   alignItems: 'center', 
-                  justifyContent: 'space-between'
+                  justifyContent: 'space-between',
+                  borderBottom: '1px solid rgba(255,255,255,0.1)'
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <MonitorIcon sx={{ mr: 1, color: '#ef4444' }} />
                   <Typography variant="h6" sx={{ color: '#fff' }}>Stress Monitor</Typography>
                 </Box>
-                <IconButton sx={{ color: '#ccc' }}>
-                  <MoreIcon />
-                </IconButton>
+                <Box 
+                  sx={{ 
+                    backgroundColor: stressReportLoading ? '#555' : 
+                      (!stressReport || typeof stressReport.overall_score !== 'number' ? '#555' : 
+                        (stressReport.overall_score > 0.6 ? '#ef4444' : 
+                          (stressReport.overall_score > 0.3 ? '#fb923c' : '#10b981'))),
+                    color: '#fff',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 16,
+                    fontSize: '0.85rem',
+                    fontWeight: 'medium',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {stressReportLoading ? 'Loading...' : 
+                    (!stressReport || typeof stressReport.overall_score !== 'number' ? 'Unknown' : 
+                      (stressReport.overall_score > 0.6 ? 'High' : 
+                        (stressReport.overall_score > 0.3 ? 'Medium' : 'Low')))}
+                </Box>
               </Box>
-              <Box sx={{ px: 2, pb: 2 }}>
-                <Typography variant="body2" sx={{ color: '#ccc' }}>
-                  Track and manage communication stress (Coming soon)
-                </Typography>
+              
+              <Box sx={{ p: 2 }}>
+                {stressReportLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                    <CircularProgress size={40} sx={{ color: '#ccc' }} />
+                  </Box>
+                ) : (
+                  <>
+                    {stressReport && (
+                      <>
+                        <Box sx={{ mb: 2 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" sx={{ color: '#aaa' }}>Today's Score</Typography>
+                            <Typography variant="body2" sx={{ color: '#fff' }}>
+                              {stressReport && typeof stressReport.overall_score === 'number' ? 
+                                Math.round(stressReport.overall_score * 100) : 0}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ width: '100%', height: 10, bgcolor: '#555', borderRadius: 5, overflow: 'hidden' }}>
+                            <Box 
+                              sx={{ 
+                                height: '100%', 
+                                width: `${stressReport && typeof stressReport.overall_score === 'number' ? 
+                                  stressReport.overall_score * 100 : 0}%`,
+                                bgcolor: stressReport && typeof stressReport.overall_score === 'number' ? (
+                                  stressReport.overall_score > 0.6 ? '#ef4444' : 
+                                  (stressReport.overall_score > 0.3 ? '#fb923c' : '#10b981')
+                                ) : '#10b981',
+                                borderRadius: 5
+                              }} 
+                            />
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                          {stressReport && stressReport.daily_trend && stressReport.daily_trend.map((level: number, index: number) => (
+                            <Box key={index} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                              <Box 
+                                sx={{ 
+                                  height: 40 * (level + 0.2), 
+                                  width: 8, 
+                                  bgcolor: level > 0.6 ? '#ef4444' : (level > 0.3 ? '#fb923c' : '#10b981'),
+                                  borderRadius: 4,
+                                  mb: 0.5
+                                }} 
+                              />
+                              <Typography variant="caption" sx={{ color: '#aaa' }}>
+                                {['M', 'T', 'W', 'T', 'F'][index]}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      </>
+                    )}
+                    
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#ccc' }}>
+                        {stressReport && stressReport.recommendations && stressReport.recommendations.length > 0 
+                          ? stressReport.recommendations[0] 
+                          : 'Track and manage communication stress'}
+                      </Typography>
+                    </Box>
+                  </>
+                )}
               </Box>
             </Paper>
           </Grid>
@@ -670,7 +973,7 @@ const Dashboard: React.FC = () => {
       <Button 
         variant="contained" 
         onClick={handleOpenSupportDialog}
-        startIcon={<PauseCircleOutlineIcon />}
+        startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 24 }} />}
         sx={{ 
           position: 'fixed', 
           bottom: 24, 
@@ -678,13 +981,21 @@ const Dashboard: React.FC = () => {
           borderRadius: 28, 
           px: 3,
           py: 1.5,
-          bgcolor: '#6366f1',
-          color: '#fff',
+          bgcolor: theme.palette.mode === 'dark' ? '#d946ef' : '#7c3aed', // Purple in dark/light modes
+          color: '#ffffff',
+          fontWeight: 600,
+          letterSpacing: '0.5px',
           '&:hover': {
-            backgroundColor: '#4f46e5',
+            backgroundColor: theme.palette.mode === 'dark' ? '#c026d3' : '#6d28d9',
+            transform: 'scale(1.05)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.4)'
           },
+          '&:active': {
+            transform: 'scale(0.98)'
+          },
+          transition: 'all 0.2s ease-in-out',
           zIndex: 1000,
-          boxShadow: '0 4px 10px rgba(0,0,0,0.3)'
+          boxShadow: '0 6px 16px rgba(0,0,0,0.35), 0 0 0 3px rgba(124, 58, 237, 0.2)'
         }}
       >
         Stop the World
@@ -694,6 +1005,7 @@ const Dashboard: React.FC = () => {
       <SupportDialog 
         open={supportDialogOpen}
         onClose={handleCloseSupportDialog}
+        onOpenSpeakToMe={handleOpenSpeakToMe}
       />
 
       {/* SpeakToMe Component */}

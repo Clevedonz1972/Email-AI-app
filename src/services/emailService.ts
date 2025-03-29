@@ -626,6 +626,30 @@ export const emailService = {
       };
     }
   },
+
+  // Get emails requiring action
+  getEmailsRequiringAction: async (): Promise<EmailMessage[]> => {
+    if (USE_SYNTHETIC_DATA) {
+      const syntheticEmails = await syntheticEmailService.getEmailsRequiringAction();
+      return syntheticEmails.map(convertSyntheticToEmailMessage);
+    }
+    
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${API_URL}/api/emails/action-required`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching emails requiring action:', error);
+      throw error;
+    }
+  },
 };
 
 export default emailService; 

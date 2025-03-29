@@ -16,6 +16,7 @@ import EmergencySupport from './components/Support/EmergencySupport';
 import { EmailDashboard } from './components/Dashboard/EmailDashboard';
 import OnboardingControls from './pages/Admin/OnboardingControls';
 import AdminOnboarding from './pages/AdminOnboarding';
+import CalendarDashboard from './pages/CalendarDashboard';
 
 // Placeholder component for upcoming dashboards
 const ComingSoonDashboard: React.FC<{title: string}> = ({title}) => {
@@ -83,6 +84,16 @@ const AppRoutesWithAuth: React.FC = () => {
           <ProtectedRoute>
             <AuthenticatedLayout>
               <EmailDashboard />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/calendar" 
+        element={
+          <ProtectedRoute>
+            <AuthenticatedLayout>
+              <CalendarDashboard />
             </AuthenticatedLayout>
           </ProtectedRoute>
         } 
