@@ -26,7 +26,11 @@ import {
   MoreVert as MoreIcon,
   Monitor as MonitorIcon,
   PauseCircleOutline as PauseCircleOutlineIcon,
-  AccountBalance as FinanceIcon
+  AccountBalance as FinanceIcon,
+  School as SchoolIcon,
+  Psychology as PsychologyIcon,
+  Group as GroupIcon,
+  Store as StoreIcon
 } from '@mui/icons-material';
 import { Navbar } from '@/components/Navigation/Navbar';
 import { useEmailContext } from '@/contexts/EmailContext';
@@ -38,6 +42,7 @@ import { OnboardingTutorial } from '@/components/Onboarding/OnboardingTutorial';
 import SpeakToMe from '@/components/Conversation/SpeakToMe';
 import QuickCalendar from '@/components/Dashboard/Calendar/QuickCalendar';
 import { calendarService, CalendarEvent } from '@/services/calendarService';
+import { TaskManager } from '@/components/Dashboard/TaskManager';
 
 // Support dialog component
 const SupportDialog: React.FC<{
@@ -529,33 +534,87 @@ const Dashboard: React.FC = () => {
         
         {/* Daily Brief Section */}
         <Box mb={4}>
-          <DailyBrief 
-            unreadCount={emails.filter(e => !e.is_read).length}
-            eventsCount={3}
-            tasksCount={5}
-            stressLevel="LOW"
-          />
+          <DailyBrief />
         </Box>
         
-        {/* Action Buttons - SPEAK TO ME button */}
-        <Box 
+        {/* Calendar and Tasks Section */}
+        <Typography 
+          variant="h6" 
           sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: 2, 
-            mb: 4
+            mb: 2, 
+            color: '#3b82f6',
+            fontWeight: 'bold'
           }}
         >
-          <Button 
-            variant="contained" 
-            color="secondary"
-            startIcon={<MicIcon />}
-            sx={{ borderRadius: 28, px: 3 }}
-            onClick={handleOpenSpeakToMe}
-          >
-            SPEAK TO ME
-          </Button>
-        </Box>
+          Calendars & Tasks
+        </Typography>
+        
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Calendar Section */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: '#333',
+              borderRadius: 2,
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" component="h2" sx={{ color: '#fff', display: 'flex', alignItems: 'center' }}>
+                  <Box component="span" sx={{ 
+                    display: 'inline-flex', 
+                    mr: 1,
+                    color: '#3b82f6'
+                  }}>
+                    {/* Calendar icon would go here */}
+                  </Box>
+                  Calendar
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => navigate('/calendar')}
+                  variant="outlined"
+                  sx={{ 
+                    color: '#3b82f6', 
+                    borderColor: '#3b82f6',
+                    '&:hover': {
+                      borderColor: '#60a5fa',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)'
+                    }
+                  }}
+                >
+                  View All
+                </Button>
+              </Box>
+              {calendarLoading ? (
+                <Box 
+                  sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center', 
+                    height: 200
+                  }}
+                >
+                  <CircularProgress sx={{ color: '#3b82f6' }} />
+                </Box>
+              ) : (
+                <Box sx={{ 
+                  flexGrow: 1, 
+                  overflow: 'auto',
+                  maxHeight: '400px'
+                }}>
+                  <QuickCalendar events={calendarEvents} />
+                </Box>
+              )}
+            </Paper>
+          </Grid>
+
+          {/* Tasks Section */}
+          <Grid item xs={12} md={6}>
+            <TaskManager maxTasks={5} />
+          </Grid>
+        </Grid>
         
         {/* Communications Section */}
         <Typography 
@@ -570,6 +629,7 @@ const Dashboard: React.FC = () => {
         </Typography>
         
         <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Email Card */}
           <Grid item xs={12} md={4}>
             <Paper 
               sx={{ 
@@ -608,6 +668,7 @@ const Dashboard: React.FC = () => {
             </Paper>
           </Grid>
           
+          {/* Chat Card */}
           <Grid item xs={12} md={4}>
             <Paper 
               sx={{ 
@@ -646,6 +707,7 @@ const Dashboard: React.FC = () => {
             </Paper>
           </Grid>
           
+          {/* Calls Card */}
           <Grid item xs={12} md={4}>
             <Paper 
               sx={{ 
@@ -685,27 +747,152 @@ const Dashboard: React.FC = () => {
           </Grid>
         </Grid>
 
-        {/* Calendar Section */}
+        {/* Health & Wellbeing Section */}
         <Typography 
           variant="h6" 
           sx={{ 
             mb: 2, 
-            color: '#3b82f6',
+            color: '#ef4444',
             fontWeight: 'bold'
           }}
         >
-          Calendar
+          Health & Wellbeing
         </Typography>
-
+        
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} md={6}>
-            {calendarLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
-                <CircularProgress sx={{ color: '#3b82f6' }} />
+          {/* Stress Monitor Card */}
+          <Grid item xs={12} md={4}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/health-dashboard')}
+            >
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <MonitorIcon sx={{ mr: 1, color: '#ef4444' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Stress Monitor</Typography>
+                </Box>
+                <Box 
+                  sx={{ 
+                    backgroundColor: stressReportLoading ? '#555' : 
+                      (!stressReport || typeof stressReport.overall_score !== 'number' ? '#555' : 
+                        (stressReport.overall_score > 0.6 ? '#ef4444' : 
+                          (stressReport.overall_score > 0.3 ? '#fb923c' : '#10b981'))),
+                    color: '#fff',
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 16,
+                    fontSize: '0.85rem',
+                    fontWeight: 'medium',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  {stressReportLoading ? 'Loading...' : 
+                    (!stressReport || typeof stressReport.overall_score !== 'number' ? 'Unknown' : 
+                      (stressReport.overall_score > 0.6 ? 'High' : 
+                        (stressReport.overall_score > 0.3 ? 'Medium' : 'Low')))}
+                </Box>
               </Box>
-            ) : (
-              <QuickCalendar events={calendarEvents} />
-            )}
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" sx={{ color: '#ccc' }}>
+                  Track and manage communication stress
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          {/* Wellness Card */}
+          <Grid item xs={12} md={4}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/health-dashboard')}
+            >
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <WellbeingIcon sx={{ mr: 1, color: '#10b981' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Wellness</Typography>
+                </Box>
+                <IconButton sx={{ color: '#ccc' }}>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" sx={{ color: '#ccc' }}>
+                  Personalized wellness recommendations (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          {/* Physical Card */}
+          <Grid item xs={12} md={4}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/health-dashboard')}
+            >
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <FitnessIcon sx={{ mr: 1, color: '#ef4444' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Physical</Typography>
+                </Box>
+                <IconButton sx={{ color: '#ccc' }}>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" sx={{ color: '#ccc' }}>
+                  Activity tracking and recommendations (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
           </Grid>
         </Grid>
 
@@ -760,137 +947,21 @@ const Dashboard: React.FC = () => {
             </Paper>
           </Grid>
         </Grid>
-        
-        {/* Health & Wellbeing Section */}
+
+        {/* Learn About Yourself Section */}
         <Typography 
           variant="h6" 
           sx={{ 
             mb: 2, 
-            color: '#ef4444',
+            color: '#8b5cf6',
             fontWeight: 'bold'
           }}
         >
-          Health & Wellbeing
+          Learn About Yourself
         </Typography>
         
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={4}>
-            <Paper 
-              sx={{ 
-                height: '100%', 
-                bgcolor: '#333',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
-                overflow: 'hidden',
-                '&:hover': {
-                  bgcolor: '#444',
-                  transform: 'translateY(-2px)'
-                }
-              }}
-              onClick={() => navigate('/health-dashboard')}
-            >
-              <Box 
-                sx={{ 
-                  p: 2, 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'space-between',
-                  borderBottom: '1px solid rgba(255,255,255,0.1)'
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <MonitorIcon sx={{ mr: 1, color: '#ef4444' }} />
-                  <Typography variant="h6" sx={{ color: '#fff' }}>Stress Monitor</Typography>
-                </Box>
-                <Box 
-                  sx={{ 
-                    backgroundColor: stressReportLoading ? '#555' : 
-                      (!stressReport || typeof stressReport.overall_score !== 'number' ? '#555' : 
-                        (stressReport.overall_score > 0.6 ? '#ef4444' : 
-                          (stressReport.overall_score > 0.3 ? '#fb923c' : '#10b981'))),
-                    color: '#fff',
-                    px: 1.5,
-                    py: 0.5,
-                    borderRadius: 16,
-                    fontSize: '0.85rem',
-                    fontWeight: 'medium',
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                >
-                  {stressReportLoading ? 'Loading...' : 
-                    (!stressReport || typeof stressReport.overall_score !== 'number' ? 'Unknown' : 
-                      (stressReport.overall_score > 0.6 ? 'High' : 
-                        (stressReport.overall_score > 0.3 ? 'Medium' : 'Low')))}
-                </Box>
-              </Box>
-              
-              <Box sx={{ p: 2 }}>
-                {stressReportLoading ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                    <CircularProgress size={40} sx={{ color: '#ccc' }} />
-                  </Box>
-                ) : (
-                  <>
-                    {stressReport && (
-                      <>
-                        <Box sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2" sx={{ color: '#aaa' }}>Today's Score</Typography>
-                            <Typography variant="body2" sx={{ color: '#fff' }}>
-                              {stressReport && typeof stressReport.overall_score === 'number' ? 
-                                Math.round(stressReport.overall_score * 100) : 0}%
-                            </Typography>
-                          </Box>
-                          <Box sx={{ width: '100%', height: 10, bgcolor: '#555', borderRadius: 5, overflow: 'hidden' }}>
-                            <Box 
-                              sx={{ 
-                                height: '100%', 
-                                width: `${stressReport && typeof stressReport.overall_score === 'number' ? 
-                                  stressReport.overall_score * 100 : 0}%`,
-                                bgcolor: stressReport && typeof stressReport.overall_score === 'number' ? (
-                                  stressReport.overall_score > 0.6 ? '#ef4444' : 
-                                  (stressReport.overall_score > 0.3 ? '#fb923c' : '#10b981')
-                                ) : '#10b981',
-                                borderRadius: 5
-                              }} 
-                            />
-                          </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                          {stressReport && stressReport.daily_trend && stressReport.daily_trend.map((level: number, index: number) => (
-                            <Box key={index} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                              <Box 
-                                sx={{ 
-                                  height: 40 * (level + 0.2), 
-                                  width: 8, 
-                                  bgcolor: level > 0.6 ? '#ef4444' : (level > 0.3 ? '#fb923c' : '#10b981'),
-                                  borderRadius: 4,
-                                  mb: 0.5
-                                }} 
-                              />
-                              <Typography variant="caption" sx={{ color: '#aaa' }}>
-                                {['M', 'T', 'W', 'T', 'F'][index]}
-                              </Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                      </>
-                    )}
-                    
-                    <Box sx={{ mt: 1 }}>
-                      <Typography variant="body2" sx={{ color: '#ccc' }}>
-                        {stressReport && stressReport.recommendations && stressReport.recommendations.length > 0 
-                          ? stressReport.recommendations[0] 
-                          : 'Track and manage communication stress'}
-                      </Typography>
-                    </Box>
-                  </>
-                )}
-              </Box>
-            </Paper>
-          </Grid>
-          
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Personal Education Card */}
           <Grid item xs={12} md={4}>
             <Paper 
               sx={{ 
@@ -903,7 +974,7 @@ const Dashboard: React.FC = () => {
                   transform: 'translateY(-2px)'
                 }
               }}
-              onClick={() => navigate('/health-dashboard')}
+              onClick={() => navigate('/learning-dashboard')}
             >
               <Box 
                 sx={{ 
@@ -914,8 +985,8 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <WellbeingIcon sx={{ mr: 1, color: '#10b981' }} />
-                  <Typography variant="h6" sx={{ color: '#fff' }}>Wellness</Typography>
+                  <SchoolIcon sx={{ mr: 1, color: '#8b5cf6' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Personal Education</Typography>
                 </Box>
                 <IconButton sx={{ color: '#ccc' }}>
                   <MoreIcon />
@@ -923,12 +994,13 @@ const Dashboard: React.FC = () => {
               </Box>
               <Box sx={{ px: 2, pb: 2 }}>
                 <Typography variant="body2" sx={{ color: '#ccc' }}>
-                  Personalized wellness recommendations (Coming soon)
+                  Bespoke education about your thinking style (Coming soon)
                 </Typography>
               </Box>
             </Paper>
           </Grid>
           
+          {/* Diagnosis Card */}
           <Grid item xs={12} md={4}>
             <Paper 
               sx={{ 
@@ -941,7 +1013,7 @@ const Dashboard: React.FC = () => {
                   transform: 'translateY(-2px)'
                 }
               }}
-              onClick={() => navigate('/health-dashboard')}
+              onClick={() => navigate('/diagnosis-dashboard')}
             >
               <Box 
                 sx={{ 
@@ -952,8 +1024,8 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <FitnessIcon sx={{ mr: 1, color: '#ef4444' }} />
-                  <Typography variant="h6" sx={{ color: '#fff' }}>Physical</Typography>
+                  <PsychologyIcon sx={{ mr: 1, color: '#8b5cf6' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Insights</Typography>
                 </Box>
                 <IconButton sx={{ color: '#ccc' }}>
                   <MoreIcon />
@@ -961,7 +1033,99 @@ const Dashboard: React.FC = () => {
               </Box>
               <Box sx={{ px: 2, pb: 2 }}>
                 <Typography variant="body2" sx={{ color: '#ccc' }}>
-                  Activity tracking and recommendations (Coming soon)
+                  Build a picture of your thinking and learning style (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+
+        {/* Community & Marketplace Section */}
+        <Typography 
+          variant="h6" 
+          sx={{ 
+            mb: 2, 
+            color: '#f59e0b',
+            fontWeight: 'bold'
+          }}
+        >
+          Community & Marketplace
+        </Typography>
+        
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          {/* Community Card */}
+          <Grid item xs={12} md={4}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/community-dashboard')}
+            >
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <GroupIcon sx={{ mr: 1, color: '#f59e0b' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Community</Typography>
+                </Box>
+                <IconButton sx={{ color: '#ccc' }}>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" sx={{ color: '#ccc' }}>
+                  Time-limited social media to share experiences (Coming soon)
+                </Typography>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          {/* Marketplace Card */}
+          <Grid item xs={12} md={4}>
+            <Paper 
+              sx={{ 
+                height: '100%', 
+                bgcolor: '#333',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                '&:hover': {
+                  bgcolor: '#444',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+              onClick={() => navigate('/marketplace-dashboard')}
+            >
+              <Box 
+                sx={{ 
+                  p: 2, 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <StoreIcon sx={{ mr: 1, color: '#f59e0b' }} />
+                  <Typography variant="h6" sx={{ color: '#fff' }}>Marketplace</Typography>
+                </Box>
+                <IconButton sx={{ color: '#ccc' }}>
+                  <MoreIcon />
+                </IconButton>
+              </Box>
+              <Box sx={{ px: 2, pb: 2 }}>
+                <Typography variant="body2" sx={{ color: '#ccc' }}>
+                  Curated goods and services with special deals (Coming soon)
                 </Typography>
               </Box>
             </Paper>
@@ -999,6 +1163,38 @@ const Dashboard: React.FC = () => {
         }}
       >
         Stop the World
+      </Button>
+      
+      {/* Speak to Me Button - positioned at bottom right next to Stop the World */}
+      <Button 
+        variant="contained" 
+        onClick={handleOpenSpeakToMe}
+        startIcon={<MicIcon sx={{ fontSize: 24 }} />}
+        sx={{ 
+          position: 'fixed', 
+          bottom: 24, 
+          right: 220, // Position it to the left of Stop the World button
+          borderRadius: 28, 
+          px: 3,
+          py: 1.5,
+          bgcolor: theme.palette.mode === 'dark' ? '#2563eb' : '#3b82f6', // Blue in dark/light modes
+          color: '#ffffff',
+          fontWeight: 600,
+          letterSpacing: '0.5px',
+          '&:hover': {
+            backgroundColor: theme.palette.mode === 'dark' ? '#1d4ed8' : '#2563eb',
+            transform: 'scale(1.05)',
+            boxShadow: '0 8px 20px rgba(0,0,0,0.4)'
+          },
+          '&:active': {
+            transform: 'scale(0.98)'
+          },
+          transition: 'all 0.2s ease-in-out',
+          zIndex: 1000,
+          boxShadow: '0 6px 16px rgba(0,0,0,0.35), 0 0 0 3px rgba(59, 130, 246, 0.2)'
+        }}
+      >
+        Speak to Me
       </Button>
       
       {/* Support Dialog */}

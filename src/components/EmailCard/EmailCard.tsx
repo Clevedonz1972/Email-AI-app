@@ -9,7 +9,9 @@ import {
 } from '@mui/material';
 import MailIcon from '@mui/icons-material/Mail';
 import FlagIcon from '@mui/icons-material/Flag';
+import { useNavigate } from 'react-router-dom';
 import type { EmailMessage } from '@/types/email';
+import ActionButtons from '@/components/shared/ActionButtons';
 
 interface EmailCardProps {
   email: EmailMessage;
@@ -22,12 +24,35 @@ export const EmailCard: React.FC<EmailCardProps> = ({
   onMarkRead,
   onFlag
 }) => {
+  const navigate = useNavigate();
+
   const handleMarkRead = () => {
     onMarkRead?.(email.id);
   };
 
   const handleFlag = () => {
     onFlag?.(email.id);
+  };
+
+  // Action button handlers
+  const handleDoItNow = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Do it now clicked for ${type} with ID: ${email.id}`);
+    navigate(`/email-detail/${email.id}`);
+  };
+
+  const handleDefer = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Deferring ${type} with ID: ${email.id}`);
+    // Implementation for deferring emails
+  };
+
+  const handleAskASTI = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Asking ASTI about ${type} with ID: ${email.id}`);
+    // Implementation for asking ASTI about emails
+  };
+
+  const handleAutoReply = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Auto-replying to ${type} with ID: ${email.id}`);
+    // Implementation for auto-replying to emails
   };
 
   return (
@@ -39,22 +64,36 @@ export const EmailCard: React.FC<EmailCardProps> = ({
       }}
     >
       <CardContent>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">
-            {email.subject}
-          </Typography>
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box>
-            <IconButton onClick={handleMarkRead} aria-label="mark as read">
-              <MailIcon color={email.is_read ? 'disabled' : 'primary'} />
-            </IconButton>
-            <IconButton onClick={handleFlag} aria-label="flag as urgent">
-              <FlagIcon />
-            </IconButton>
+            <Typography variant="h6">
+              {email.subject}
+            </Typography>
+            <Typography color="textSecondary" gutterBottom>
+              From: {email.sender.name} ({email.sender.email})
+            </Typography>
+          </Box>
+          <Box display="flex" alignItems="center">
+            <ActionButtons 
+              type="email"
+              onDoItNow={handleDoItNow}
+              onDefer={handleDefer}
+              onAskASTI={handleAskASTI}
+              onAutoReply={handleAutoReply}
+              showAutoReply={true}
+              size="small"
+            />
+            <Box ml={1}>
+              <IconButton onClick={handleMarkRead} aria-label="mark as read" size="small">
+                <MailIcon color={email.is_read ? 'disabled' : 'primary'} />
+              </IconButton>
+              <IconButton onClick={handleFlag} aria-label="flag as urgent" size="small">
+                <FlagIcon />
+              </IconButton>
+            </Box>
           </Box>
         </Box>
-        <Typography color="textSecondary" gutterBottom>
-          From: {email.sender.name} ({email.sender.email})
-        </Typography>
+        
         <Typography variant="body2" paragraph>
           {email.preview}
         </Typography>

@@ -9,7 +9,7 @@ from slowapi.errors import RateLimitExceeded
 from prometheus_client import make_asgi_app
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
-from backend.routes import auth_router, email_router, health_router, preferences_router
+from backend.routes import auth_router, email_router, health_router, preferences_router, asti_router
 from backend.routes.analytics import router as analytics_router
 from backend.routes.test_calendar import router as test_calendar_router
 from backend.config import settings
@@ -153,6 +153,14 @@ app.include_router(
     test_calendar_router,
     prefix="/api",
     tags=["test-calendar"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+# Include ASTI router
+app.include_router(
+    asti_router,
+    prefix="/api/asti",
+    tags=["asti"],
     responses={401: {"description": "Unauthorized"}},
 )
 

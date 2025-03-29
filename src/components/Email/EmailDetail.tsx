@@ -28,6 +28,7 @@ import { FocusAssistant } from '../Common/FocusAssistant';
 import { EmailAnalysis } from './EmailAnalysis';
 import { emailService } from '../../services/emailService';
 import type { EmailAnalysis as EmailAnalysisType, StressLevel, Priority } from '@/types/email';
+import ActionButtons from '@/components/shared/ActionButtons';
 
 interface EmailDetailProps {
   email: {
@@ -163,6 +164,38 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
     });
   };
 
+  // Action button handlers
+  const handleDoItNow = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Do it now clicked for ${type}`);
+    onReply(); // Open reply dialog
+  };
+
+  const handleDefer = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Deferring ${type}`);
+    // Implementation for deferring emails
+    setSnackbar({
+      open: true,
+      message: 'Email has been deferred',
+      severity: 'info'
+    });
+  };
+
+  const handleAskASTI = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Asking ASTI about ${type}`);
+    // This shows the AI analysis
+    handleShowAnalysis();
+  };
+
+  const handleAutoReply = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Auto-replying to ${type}`);
+    // Implementation for auto-replying to emails
+    setSnackbar({
+      open: true,
+      message: 'Auto-reply sent',
+      severity: 'success'
+    });
+  };
+
   return (
     <Box>
       <Paper
@@ -186,27 +219,27 @@ export const EmailDetail: React.FC<EmailDetailProps> = ({
           >
             {email.subject}
           </Typography>
-          <Box display="flex" gap={1}>
-            <Tooltip title="Text to Speech">
-              <IconButton onClick={handleTextToSpeech}>
-                <TextToSpeechIcon />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Mark as Read">
-              <IconButton onClick={onMarkRead}>
-                <ReadIcon />
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="contained"
-              startIcon={<ReplyIcon />}
-              onClick={() => handleShowAnalysis()}
-              sx={{
-                fontSize: preferences.fontSize * 0.875,
-              }}
-            >
-              Reply with AI
-            </Button>
+          <Box display="flex" alignItems="center" gap={1}>
+            <ActionButtons 
+              type="email"
+              onDoItNow={handleDoItNow}
+              onDefer={handleDefer}
+              onAskASTI={handleAskASTI}
+              onAutoReply={handleAutoReply}
+              showAutoReply={true}
+            />
+            <Box ml={1}>
+              <Tooltip title="Text to Speech">
+                <IconButton onClick={handleTextToSpeech}>
+                  <TextToSpeechIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Mark as Read">
+                <IconButton onClick={onMarkRead}>
+                  <ReadIcon />
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
         </Box>
 

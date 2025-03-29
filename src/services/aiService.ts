@@ -2,6 +2,7 @@ import axios from 'axios';
 
 // API endpoint for AI conversation
 const AI_API_ENDPOINT = process.env.REACT_APP_AI_API_ENDPOINT || 'https://api.your-backend.com/ai';
+const ASTI_API_ENDPOINT = process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/api/asti` : '/api/asti';
 
 // OpenAI voice models
 export enum OpenAIVoice {
@@ -26,6 +27,58 @@ interface AIResponse {
   text: string;
   audio?: string; // Base64 encoded audio if TTS is requested
 }
+
+// Daily Brief data interface
+export interface DailyBriefData {
+  greeting: string;
+  overall_status: {
+    stress_level: 'HIGH' | 'MEDIUM' | 'LOW';
+    focus_needed: string[];
+  };
+  email_summary: {
+    unread_count: number;
+    high_priority_count: number;
+    action_required_count: number;
+    most_important_sender?: string;
+  };
+  calendar_summary: {
+    total_events: number;
+    next_event?: {
+      title: string;
+      start_time: string;
+      end_time: string;
+      location?: string;
+    };
+  };
+  task_summary: {
+    total_tasks: number;
+    urgent_tasks: number;
+    upcoming_deadlines: Array<{
+      title: string;
+      due_date: string;
+    }>;
+  };
+  stress_factors: string[];
+  wellbeing_suggestions: string[];
+  memory_insights: Array<{
+    text: string;
+    relevance_score: number;
+  }>;
+}
+
+// Get token from localStorage
+const getAuthToken = (): string | null => {
+  return localStorage.getItem('token');
+};
+
+// Create API client with timeout
+const apiClient = axios.create({
+  baseURL: ASTI_API_ENDPOINT,
+  timeout: 10000, // 10 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
 
 // AI Service implementation
 export const aiService = {
@@ -168,5 +221,140 @@ export const aiService = {
       const randomResponse = defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
       return { text: randomResponse };
     }
+  },
+
+  // Get daily brief data from ASTI
+  getDailyBrief: async (): Promise<DailyBriefData> => {
+    try {
+      const token = getAuthToken();
+      
+      // For development, if no backend is available, return mock data
+      if (process.env.NODE_ENV === 'development' && (!token || !process.env.REACT_APP_API_URL)) {
+        console.log('Using fallback data for daily brief in development mode');
+        return getFallbackDailyBriefData();
+      }
+      
+      const response = await apiClient.get('/daily-brief', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching daily brief:', error);
+      // Return fallback data in case of error
+      return getFallbackDailyBriefData();
+    }
+  },
+  
+  // Get wellbeing suggestions
+  getWellbeingSuggestions: async (): Promise<string[]> => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await apiClient.get('/wellbeing/suggestions', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      return response.data.suggestions;
+    } catch (error) {
+      console.error('Error fetching wellbeing suggestions:', error);
+      return [
+        "Take a 5-minute break and practice deep breathing",
+        "Consider a short walk to reset your mind",
+        "Try the Pomodoro technique for better focus",
+        "Drink water and ensure you're staying hydrated",
+        "Check your posture and adjust your seating if needed"
+      ];
+    }
+  },
+  
+  // Analyze an email
+  analyzeEmail: async (email: any): Promise<any> => {
+    try {
+      const token = getAuthToken();
+      
+      const response = await apiClient.post('/analyze-email', email, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error analyzing email:', error);
+      throw error;
+    }
   }
+};
+
+// Fallback data for development/error cases
+const getFallbackDailyBriefData = (): DailyBriefData => {
+  const now = new Date();
+  const hour = now.getHours();
+  
+  // Generate appropriate greeting based on time of day
+  let greeting = "Good day!";
+  if (hour < 12) greeting = "Good morning!";
+  else if (hour < 17) greeting = "Good afternoon!";
+  else greeting = "Good evening!";
+  
+  return {
+    greeting: greeting,
+    overall_status: {
+      stress_level: 'MEDIUM',
+      focus_needed: ['Email inbox', 'Upcoming deadline']
+    },
+    email_summary: {
+      unread_count: 12,
+      high_priority_count: 3,
+      action_required_count: 5,
+      most_important_sender: 'Team Lead'
+    },
+    calendar_summary: {
+      total_events: 3,
+      next_event: {
+        title: 'Team Meeting',
+        start_time: new Date(now.getTime() + 3600000).toISOString(), // 1 hour from now
+        end_time: new Date(now.getTime() + 5400000).toISOString() // 1.5 hours from now
+      }
+    },
+    task_summary: {
+      total_tasks: 8,
+      urgent_tasks: 2,
+      upcoming_deadlines: [
+        {
+          title: 'Project Proposal',
+          due_date: new Date(now.getTime() + 86400000).toISOString() // Tomorrow
+        },
+        {
+          title: 'Client Presentation',
+          due_date: new Date(now.getTime() + 259200000).toISOString() // 3 days from now
+        }
+      ]
+    },
+    stress_factors: [
+      'Multiple high-priority emails',
+      'Approaching deadline',
+      'Meeting preparation'
+    ],
+    wellbeing_suggestions: [
+      'Take a 5-minute break every hour',
+      'Consider a short walk after lunch',
+      'Prioritize the most important tasks first'
+    ],
+    memory_insights: [
+      {
+        text: 'You mentioned feeling overwhelmed with project deadlines last week',
+        relevance_score: 0.85
+      },
+      {
+        text: 'The team leader asked for updates on the current project by end of day',
+        relevance_score: 0.92
+      }
+    ]
+  };
 }; 

@@ -109,7 +109,7 @@ const handleApiError = (error: unknown, endpoint: string, useFallback = true) =>
 };
 
 // Flag to control whether to use synthetic data or real API
-const USE_SYNTHETIC_DATA = true;
+const USE_SYNTHETIC_DATA = process.env.NODE_ENV === 'development';
 
 // Email service that can switch between synthetic data and real API
 export const emailService = {
@@ -117,24 +117,52 @@ export const emailService = {
   // Get test emails for demonstration
   getTestEmails: async () => {
     if (USE_SYNTHETIC_DATA) {
-      const syntheticEmails = await syntheticEmailService.getAllEmails();
-      return syntheticEmails.map(convertSyntheticToEmailMessage);
+      try {
+        console.log('Using synthetic email data');
+        const syntheticEmails = await syntheticEmailService.getAllEmails();
+        
+        // If we have fewer than 15 synthetic emails, generate more to ensure we have enough test data
+        if (syntheticEmails.length < 15) {
+          console.log('Generating additional synthetic emails to ensure sufficient test data');
+          const additionalEmails = syntheticEmailService.generateSyntheticEmails(15 - syntheticEmails.length);
+          const allEmails = [...syntheticEmails, ...additionalEmails];
+          return allEmails.map(convertSyntheticToEmailMessage);
+        }
+        
+        return syntheticEmails.map(convertSyntheticToEmailMessage);
+      } catch (error) {
+        console.error('Error generating synthetic emails:', error);
+        // Fall back to mock data if synthetic generation fails
+        console.log('Falling back to mock emails');
+        return mockEmails;
+      }
     }
     
     try {
       const token = localStorage.getItem('access_token');
+      
+      // If no token is available in development, fall back to mock data
+      if (!token && process.env.NODE_ENV === 'development') {
+        console.log('No auth token available in development, using mock data');
+        return mockEmails;
+      }
+      
       const response = await fetch(`${API_URL}/api/emails/test-emails`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       return await response.json();
     } catch (error) {
       console.error('Error fetching test emails:', error);
-      throw error;
+      handleApiError(error, 'getTestEmails');
+      // Fall back to mock data as a last resort
+      return mockEmails;
     }
   },
 
@@ -628,10 +656,29 @@ export const emailService = {
   },
 
   // Get emails requiring action
-  getEmailsRequiringAction: async (): Promise<EmailMessage[]> => {
+  getEmailsRequiringAction: async () => {
     if (USE_SYNTHETIC_DATA) {
-      const syntheticEmails = await syntheticEmailService.getEmailsRequiringAction();
-      return syntheticEmails.map(convertSyntheticToEmailMessage);
+      try {
+        console.log('Fetching synthetic emails requiring action');
+        // First try to use the synthetic service's dedicated method
+        const actionEmails = await syntheticEmailService.getEmailsRequiringAction();
+        return actionEmails.map(convertSyntheticToEmailMessage);
+      } catch (error) {
+        console.error('Error fetching synthetic action emails:', error);
+        
+        // Fallback to filtering some test emails
+        const allEmails = await syntheticEmailService.getAllEmails();
+        const actionEmails = allEmails
+          .filter(email => email.metadata.needsResponse)
+          .map(convertSyntheticToEmailMessage);
+        
+        // If we still don't have any, generate some with action_required
+        if (actionEmails.length === 0) {
+          return mockEmails.filter(email => email.action_required);
+        }
+        
+        return actionEmails;
+      }
     }
     
     try {
@@ -641,13 +688,18 @@ export const emailService = {
           'Authorization': `Bearer ${token}`
         }
       });
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       return await response.json();
     } catch (error) {
       console.error('Error fetching emails requiring action:', error);
-      throw error;
+      handleApiError(error, 'getEmailsRequiringAction');
+      
+      // Fallback to mock emails with action_required
+      return mockEmails.filter(email => email.action_required);
     }
   },
 };

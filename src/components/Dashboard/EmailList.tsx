@@ -19,7 +19,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import { useNavigate } from 'react-router-dom';
 import type { EmailMessage, ActionItem } from '@/types/email';
+import ActionButtons from '@/components/shared/ActionButtons';
 
 interface EmailListProps {
   emails: readonly EmailMessage[];
@@ -81,6 +83,7 @@ export const EmailList: React.FC<EmailListProps> = ({
 }) => {
   const theme = useTheme();
   const [expandedEmail, setExpandedEmail] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   const filteredEmails = emails.filter((email) => {
     const categoryMatch =
@@ -103,6 +106,29 @@ export const EmailList: React.FC<EmailListProps> = ({
       default:
         return <CheckCircleIcon color="success" />;
     }
+  };
+
+  // Action button handlers
+  const handleDoItNow = (type: 'email' | 'calendar' | 'task' | 'wellbeing', emailId?: number) => {
+    console.log(`Do it now clicked for ${type} with ID: ${emailId}`);
+    if (type === 'email' && emailId) {
+      navigate(`/email-detail/${emailId}`);
+    }
+  };
+
+  const handleDefer = (type: 'email' | 'calendar' | 'task' | 'wellbeing', emailId?: number) => {
+    console.log(`Deferring ${type} with ID: ${emailId}`);
+    // Implementation for deferring emails
+  };
+
+  const handleAskASTI = (type: 'email' | 'calendar' | 'task' | 'wellbeing', emailId?: number) => {
+    console.log(`Asking ASTI about ${type} with ID: ${emailId}`);
+    // Implementation for asking ASTI about emails
+  };
+
+  const handleAutoReply = (type: 'email' | 'calendar' | 'task' | 'wellbeing', emailId?: number) => {
+    console.log(`Auto-replying to ${type} with ID: ${emailId}`);
+    // Implementation for auto-replying to emails
   };
 
   const renderActionItems = (email: EmailMessage) => {
@@ -138,71 +164,67 @@ export const EmailList: React.FC<EmailListProps> = ({
   }
 
   return (
-    <List aria-label="Email list">
+    <Box>
       {filteredEmails.map((email) => (
-        <ListItem
+        <EmailItem
           key={email.id}
-          disablePadding
-          sx={{ display: 'block', mb: 2 }}
+          isRead={email.is_read}
+          stressLevel={email.stress_level.toLowerCase()}
         >
-          <EmailItem
-            isRead={email.is_read}
-            stressLevel={email.stress_level}
-            role="article"
-            aria-expanded={expandedEmail === email.id}
-          >
-            <Box display="flex" justifyContent="space-between" alignItems="center">
-              <Box flex={1}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  {email.subject}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  From: {email.sender.name} ({email.sender.email})
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center">
+          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+            <Box>
+              <Box display="flex" alignItems="center" mb={1}>
                 <StressChip
-                  level={email.stress_level}
-                  label={`${email.stress_level} stress`}
+                  level={email.stress_level.toLowerCase()}
+                  label={`${email.stress_level} Stress`}
                   size="small"
                 />
-                <Tooltip title={`Priority: ${email.priority}`}>
-                  {getPriorityIcon(email.priority)}
-                </Tooltip>
-                <IconButton
-                  onClick={() => handleExpand(email.id)}
-                  aria-label={
-                    expandedEmail === email.id
-                      ? 'Show less details'
-                      : 'Show more details'
-                  }
-                >
-                  {expandedEmail === email.id ? (
-                    <ExpandLessIcon />
-                  ) : (
-                    <ExpandMoreIcon />
-                  )}
-                </IconButton>
+                <Chip
+                  icon={getPriorityIcon(email.priority)}
+                  label={`${email.priority} Priority`}
+                  size="small"
+                  variant="outlined"
+                />
               </Box>
+              <Typography variant="h6" component="h3">
+                {email.subject}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" gutterBottom>
+                From: {email.sender.name} ({email.sender.email})
+              </Typography>
             </Box>
-
-            <Collapse in={expandedEmail === email.id}>
-              <Box mt={2}>
-                {email.summary && (
-                  <Box mb={2} component="section" aria-label="Email summary">
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
-                      AI Summary
-                    </Typography>
-                    <Typography variant="body2">{email.summary}</Typography>
-                  </Box>
+            <Box display="flex" alignItems="center">
+              <ActionButtons 
+                type="email"
+                onDoItNow={(type) => handleDoItNow(type, email.id)}
+                onDefer={(type) => handleDefer(type, email.id)}
+                onAskASTI={(type) => handleAskASTI(type, email.id)}
+                onAutoReply={(type) => handleAutoReply(type, email.id)}
+                showAutoReply={true}
+                size="small"
+              />
+              <IconButton
+                onClick={() => handleExpand(email.id)}
+                aria-expanded={expandedEmail === email.id}
+                aria-label="show more"
+              >
+                {expandedEmail === email.id ? (
+                  <ExpandLessIcon />
+                ) : (
+                  <ExpandMoreIcon />
                 )}
+              </IconButton>
+            </Box>
+          </Box>
 
-                {renderActionItems(email)}
-              </Box>
-            </Collapse>
-          </EmailItem>
-        </ListItem>
+          <Collapse in={expandedEmail === email.id} timeout="auto" unmountOnExit>
+            <Box mt={2}>
+              <Typography variant="body1">{email.content}</Typography>
+              {renderActionItems(email)}
+            </Box>
+          </Collapse>
+        </EmailItem>
       ))}
-    </List>
+    </Box>
   );
 }; 

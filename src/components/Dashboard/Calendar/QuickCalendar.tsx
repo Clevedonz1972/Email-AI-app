@@ -8,6 +8,8 @@ import {
   LocationOn as LocationIcon,
 } from '@mui/icons-material';
 import { CalendarEvent } from '@/services/calendarService';
+import ActionButtons from '@/components/shared/ActionButtons';
+import { useNavigate } from 'react-router-dom';
 
 // Sample event data - would come from a real calendar API in production
 const mockEvents = [
@@ -47,6 +49,7 @@ interface QuickCalendarProps {
 export const QuickCalendar: React.FC<QuickCalendarProps> = ({ events = mockEvents }) => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  const navigate = useNavigate();
   
   // Sort events by start time
   const sortedEvents = [...events].sort((a, b) => a.start.getTime() - b.start.getTime());
@@ -91,6 +94,23 @@ export const QuickCalendar: React.FC<QuickCalendarProps> = ({ events = mockEvent
         return <EventIcon fontSize="small" sx={{ color: isNow ? '#fff' : getEventColor(type) }} />;
     }
   };
+
+  // Action button handlers
+  const handleDoItNow = (type: 'email' | 'calendar' | 'task' | 'wellbeing', eventId?: string) => {
+    console.log(`Joining calendar event: ${eventId}`);
+    // Here you would typically launch the meeting URL or navigate to the event detail
+    navigate('/calendar/event/' + eventId);
+  };
+
+  const handleDefer = (type: 'email' | 'calendar' | 'task' | 'wellbeing', eventId?: string) => {
+    console.log(`Deferring calendar event: ${eventId}`);
+    // Logic for rescheduling or deferring event
+  };
+
+  const handleAskASTI = (type: 'email' | 'calendar' | 'task' | 'wellbeing', eventId?: string) => {
+    console.log(`Asking ASTI about calendar event: ${eventId}`);
+    // Open ASTI chat with context about this calendar event
+  };
   
   return (
     <Paper
@@ -125,7 +145,7 @@ export const QuickCalendar: React.FC<QuickCalendarProps> = ({ events = mockEvent
               Your calendar is clear for today.
             </Typography>
           </Box>
-        ) : (
+        ) :
           <Box>
             {sortedEvents.map((event, index) => {
               const isNow = isEventNow(event.start, event.end);
@@ -144,79 +164,86 @@ export const QuickCalendar: React.FC<QuickCalendarProps> = ({ events = mockEvent
                       border: isNow ? `1px solid ${getEventColor(event.type)}` : 'none',
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Chip
-                        icon={getEventIcon(event.type, isNow)}
-                        label={isNow ? 'Now' : event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <Chip
+                            icon={getEventIcon(event.type, isNow)}
+                            label={isNow ? 'Now' : event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                            size="small"
+                            sx={{
+                              mr: 1,
+                              bgcolor: isNow ? getEventColor(event.type) : isDarkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                              color: isNow ? '#fff' : 'inherit',
+                              fontWeight: isNow ? 'bold' : 'normal',
+                            }}
+                          />
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <TimeIcon fontSize="small" sx={{ mr: 0.5, color: isDarkMode ? '#9ca3af' : '#6b7280' }} />
+                            <Typography variant="caption" color="text.secondary">
+                              {formatTime(event.start)} - {formatTime(event.end)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        
+                        <Typography variant="subtitle1" fontWeight={isNow ? 'bold' : 'medium'}>
+                          {event.title}
+                        </Typography>
+                        
+                        {event.location && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                            <LocationIcon fontSize="small" sx={{ mr: 0.5, color: isDarkMode ? '#9ca3af' : '#6b7280' }} />
+                            <Typography variant="body2" color="text.secondary">
+                              {event.location}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                      
+                      <ActionButtons 
+                        type="calendar"
+                        onDoItNow={(type) => handleDoItNow(type, event.id)}
+                        onDefer={(type) => handleDefer(type, event.id)}
+                        onAskASTI={(type) => handleAskASTI(type, event.id)}
                         size="small"
-                        sx={{
-                          mr: 1,
-                          bgcolor: isNow ? getEventColor(event.type) : isDarkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
-                          color: isNow ? '#fff' : 'inherit',
-                          fontWeight: isNow ? 'bold' : 'normal',
-                        }}
                       />
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          fontWeight: isNow ? 'bold' : 'normal',
-                          color: 'text.secondary',
-                          display: 'flex',
-                          alignItems: 'center',
-                          fontSize: '0.75rem',
-                        }}
-                      >
-                        <TimeIcon fontSize="small" sx={{ mr: 0.5, fontSize: '0.875rem' }} />
-                        {formatTime(event.start)} - {formatTime(event.end)}
-                      </Typography>
                     </Box>
                     
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        mb: 1,
-                        fontWeight: isNow ? 'bold' : 'medium',
-                      }}
-                    >
-                      {event.title}
-                    </Typography>
-                    
-                    {event.location && (
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <LocationIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary', fontSize: '0.875rem' }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {event.location}
-                        </Typography>
-                      </Box>
-                    )}
-                    
                     {event.attendees && event.attendees.length > 0 && (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {event.attendees.slice(0, 4).map((attendee, i) => (
-                          <Avatar
-                            key={i}
-                            sx={{
-                              width: 24,
-                              height: 24,
-                              fontSize: '0.75rem',
-                              bgcolor: `hsl(${(i * 60) % 360}, 70%, ${isDarkMode ? '50%' : '40%'})`,
-                            }}
-                          >
-                            {attendee.charAt(0)}
-                          </Avatar>
-                        ))}
-                        {event.attendees.length > 4 && (
-                          <Avatar
-                            sx={{
-                              width: 24,
-                              height: 24,
-                              fontSize: '0.75rem',
-                              bgcolor: isDarkMode ? 'grey.700' : 'grey.400',
-                            }}
-                          >
-                            +{event.attendees.length - 4}
-                          </Avatar>
-                        )}
+                      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                          Attendees:
+                        </Typography>
+                        <Box sx={{ display: 'flex' }}>
+                          {event.attendees.slice(0, 3).map((attendee, i) => (
+                            <Avatar
+                              key={i}
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                bgcolor: getEventColor(event.type),
+                                ml: i > 0 ? -0.5 : 0,
+                              }}
+                            >
+                              {attendee.charAt(0)}
+                            </Avatar>
+                          ))}
+                          {event.attendees.length > 3 && (
+                            <Avatar
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                bgcolor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.1)',
+                                color: isDarkMode ? '#3b82f6' : '#2563eb',
+                                ml: -0.5,
+                              }}
+                            >
+                              +{event.attendees.length - 3}
+                            </Avatar>
+                          )}
+                        </Box>
                       </Box>
                     )}
                   </Box>
@@ -224,7 +251,7 @@ export const QuickCalendar: React.FC<QuickCalendarProps> = ({ events = mockEvent
               );
             })}
           </Box>
-        )}
+        }
       </Box>
     </Paper>
   );

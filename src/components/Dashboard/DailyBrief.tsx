@@ -1,73 +1,144 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Button, Collapse, IconButton, useTheme, CircularProgress, Chip, Tooltip, Badge } from '@mui/material';
-import { 
-  Email as EmailIcon, 
-  Event as EventIcon, 
-  AssignmentTurnedIn as TaskIcon,
-  Spa as WellbeingIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Launch as LaunchIcon,
-  Snooze as SnoozeIcon,
-  Reply as ReplyIcon,
-  Report as ReportIcon,
-  AccessTime as AccessTimeIcon,
-  CheckCircle as CheckCircleIcon,
-  PlaylistAddCheck as PriorityIcon,
-  NotificationsOff as MuteIcon
-} from '@mui/icons-material';
-import { useEmailContext } from '@/contexts/EmailContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Box, Typography, Paper, IconButton, Collapse, Badge, Button, CircularProgress, Tooltip, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import EmailIcon from '@mui/icons-material/Email';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import EventIcon from '@mui/icons-material/Event';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import LaunchIcon from '@mui/icons-material/Launch';
+import SnoozeIcon from '@mui/icons-material/Snooze';
+import ReplyIcon from '@mui/icons-material/Reply';
+import ReportIcon from '@mui/icons-material/Report';
+import MuteIcon from '@mui/icons-material/NotificationsOff';
+import TodayIcon from '@mui/icons-material/Today';
+import UpdateIcon from '@mui/icons-material/Update';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import WatchLaterIcon from '@mui/icons-material/WatchLater';
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
+import SendIcon from '@mui/icons-material/Send';
 import { useNavigate } from 'react-router-dom';
-import { EmailMessage, Priority } from '@/types/email';
+import { useEmailContext } from '@/contexts/EmailContext';
+import { useSettings } from '@/contexts/SettingsContext';
+import type { EmailMessage } from '@/types/email';
+import { aiService, DailyBriefData } from '@/services/aiService';
+import ActionButtons, { ActionType } from '@/components/shared/ActionButtons';
 
-export interface DailyBriefProps {
-  unreadCount?: number;
-  eventsCount?: number;
-  tasksCount?: number;
-  stressLevel?: string;
+// Use MUI for WellbeingIcon component
+const WellbeingIcon = FavoriteIcon;
+
+// ViewMode type
+type ViewMode = 'daily' | 'right-now';
+
+interface DailyBriefProps {
+  // Optional props can be added here as needed
 }
 
 export const DailyBrief: React.FC<DailyBriefProps> = () => {
   const [expanded, setExpanded] = useState(true);
-  const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
+  const [viewMode, setViewMode] = useState<ViewMode>('daily');
+  const { emails, loading: emailsLoading, stressReport, stressReportLoading, markAllAsRead } = useEmailContext();
+  const [loading, setLoading] = useState(true);
+  const [briefData, setBriefData] = useState<DailyBriefData | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  
-  // Get real email data from context
-  const { 
-    emails, 
-    loading, 
-    error, 
-    emailStats, 
-    refreshEmails, 
-    stressReport, 
-    stressReportLoading,
-    getStressReport,
-    markAllAsRead
-  } = useEmailContext() ?? {
-    emails: [],
-    loading: false,
-    error: null,
-    emailStats: { unread: 0, high: 0 },
-    refreshEmails: async () => {},
-    stressReport: null,
-    stressReportLoading: false,
-    getStressReport: async () => {},
-    markAllAsRead: async () => {}
-  };
+  const { settings } = useSettings();
+  const isDarkMode = settings.darkMode;
 
-  // Fetch stress report on component mount
+  // Fetch the daily brief from ASTI
+  const fetchDailyBrief = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await aiService.getDailyBrief();
+      setBriefData(data);
+    } catch (error) {
+      console.error('Error fetching daily brief:', error);
+      setError('Unable to load daily brief data. Using fallback data.');
+      // Still set the fallback data
+      const fallbackData = await aiService.getDailyBrief();
+      setBriefData(fallbackData);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    getStressReport();
-  }, [getStressReport]);
+    fetchDailyBrief();
+    
+    // If we're in development, add automatic retry for API connection issues
+    if (process.env.NODE_ENV === 'development' && retryCount < 2) {
+      const retryTimer = setTimeout(() => {
+        console.log(`Retrying daily brief fetch (attempt ${retryCount + 1})...`);
+        setRetryCount(prev => prev + 1);
+        fetchDailyBrief();
+      }, 5000); // Wait 5 seconds before retry
+      
+      return () => clearTimeout(retryTimer);
+    }
+  }, [fetchDailyBrief, retryCount]);
 
   const handleExpandClick = () => {
     setExpanded(!expanded);
   };
 
+  // Handle view mode change
+  const handleViewModeChange = (
+    event: React.MouseEvent<HTMLElement>,
+    newViewMode: ViewMode | null,
+  ) => {
+    if (newViewMode !== null) {
+      setViewMode(newViewMode);
+    }
+  };
+
   // Navigate to email dashboard
   const handleEmailAction = () => {
     navigate('/email-dashboard');
+  };
+
+  // Handler for "Do it now" button
+  const handleDoItNow = (type: ActionType) => {
+    console.log(`Do it now clicked for ${type}`);
+    switch (type) {
+      case 'email':
+        navigate('/email-dashboard');
+        break;
+      case 'calendar':
+        navigate('/calendar');
+        break;
+      case 'task':
+        navigate('/email-dashboard?filter=action_required');
+        break;
+      case 'wellbeing':
+        navigate('/health-dashboard');
+        break;
+    }
+  };
+
+  // Handler for "Defer" button
+  const handleDefer = (type: ActionType) => {
+    console.log(`Deferring ${type} for later`);
+    // This would call an API to defer the item
+    // For now, just show a confirmation in console
+  };
+
+  // Handler for "Ask ASTI" button
+  const handleAskASTI = (type: ActionType) => {
+    console.log(`Asking ASTI about ${type}`);
+    // This would trigger the ASTI dialog with context about this item
+    // For now, just show a confirmation in console
+  };
+
+  // Handler for "Auto-reply" button
+  const handleAutoReply = (type: ActionType) => {
+    console.log(`Auto-replying to ${type}`);
+    // This would trigger an auto-reply feature
+    // For now, just show a confirmation in console
   };
 
   // Mark all emails as read
@@ -108,32 +179,24 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
     // This would call a notification API
   };
 
-  // Smart function to generate appropriate greeting based on time of day
-  const getGreeting = () => {
-    const hour = new Date().getHours();
+  // Email stats computation
+  const emailStats = React.useMemo(() => {
+    const unread = emails.filter((e: EmailMessage) => !e.is_read).length;
+    const high = emails.filter((e: EmailMessage) => e.priority === 'HIGH' && !e.is_read).length;
     
-    if (hour < 12) return "Good morning!";
-    if (hour < 17) return "Good afternoon!";
-    return "Good evening!";
-  };
+    return { unread, high };
+  }, [emails]);
 
-  // Generate calendar summary
-  const getCalendarSummary = () => {
-    // This would ideally come from a calendar service
-    // For now we'll create a placeholder that feels dynamic
-    
-    const now = new Date();
-    const hour = now.getHours();
-    
-    if (hour < 9) return "Your calendar is clear until your 9:30 AM team meeting.";
-    if (hour < 12) return "You have a lunch meeting at 12:00 PM with the product team.";
-    if (hour < 14) return "Your calendar is clear until 3 PM, when you have a team meeting.";
-    if (hour < 16) return "You have one more meeting today at 4:30 PM.";
-    return "You have no more meetings scheduled for today.";
-  };
-
-  // Generate task summary based on action required emails
+  // If no ASTI data is available yet, fallback to computed data
   const getTaskSummary = () => {
+    if (briefData?.task_summary) {
+      if (briefData.task_summary.upcoming_deadlines.length > 0) {
+        return `You have ${briefData.task_summary.urgent_tasks} urgent tasks. The most pressing is "${briefData.task_summary.upcoming_deadlines[0]?.title}".`;
+      }
+      return `You have ${briefData.task_summary.total_tasks} tasks, ${briefData.task_summary.urgent_tasks} of which are urgent.`;
+    }
+    
+    // Fallback to computed data
     const actionRequiredEmails = emails.filter((email: EmailMessage) => email.action_required && !email.is_read);
     
     if (actionRequiredEmails.length === 0) {
@@ -148,40 +211,85 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
     return `You have ${actionRequiredEmails.length} emails that require your attention. The most urgent one is from ${actionRequiredEmails[0].sender.name}.`;
   };
 
-  // Get task priority level
-  const getTaskPriorityLevel = () => {
-    const highPriorityEmails = emails.filter((e: EmailMessage) => e.priority === 'HIGH' && e.action_required && !e.is_read).length;
-    const allActionRequired = emails.filter((e: EmailMessage) => e.action_required && !e.is_read).length;
-    
-    if (highPriorityEmails > 0) return 'high';
-    if (allActionRequired > 2) return 'medium';
-    if (allActionRequired > 0) return 'low';
-    return 'none';
-  };
-
-  // Generate wellbeing message based on stress report
-  const getWellbeingMessage = () => {
-    if (!stressReport) return "Your wellbeing data is being analyzed.";
-    
-    const { overallStress } = stressReport;
-    
-    if (overallStress === 'LOW') {
-      return "Your overall stress level today seems low. Keep it up!";
-    } else if (overallStress === 'MEDIUM') {
-      return "Your stress level is moderate today. Consider taking a short break between tasks.";
-    } else {
-      return "Your stress indicators are showing higher levels today. Remember to take breaks and practice your stress-reduction techniques.";
+  // Get task priority color
+  const getTaskPriorityColor = () => {
+    const priority = briefData?.overall_status?.stress_level || 'MEDIUM';
+    switch (priority) {
+      case 'HIGH': return '#d32f2f';
+      case 'MEDIUM': return '#f57c00';
+      case 'LOW': return '#388e3c';
+      default: return '#757575';
     }
   };
 
-  // Get task priority color
-  const getTaskPriorityColor = () => {
-    const priority = getTaskPriorityLevel();
-    switch (priority) {
-      case 'high': return '#d32f2f';
-      case 'medium': return '#f57c00';
-      case 'low': return '#388e3c';
-      default: return '#757575';
+  // Filter for "Right Now" view - only show immediate items
+  const getImmediateItems = () => {
+    // Logic to determine what's immediate/urgent
+    const hasHighPriorityEmails = (briefData?.email_summary?.high_priority_count || emailStats.high) > 0;
+    const hasUrgentTasks = (briefData?.task_summary?.urgent_tasks || 0) > 0;
+    const hasUpcomingMeeting = briefData?.calendar_summary?.next_event && 
+      new Date(briefData.calendar_summary.next_event.start_time).getTime() - Date.now() < 3600000; // within the hour
+    
+    return {
+      showEmails: hasHighPriorityEmails,
+      showTasks: hasUrgentTasks,
+      showCalendar: hasUpcomingMeeting,
+      // Always show wellbeing, as it's generally important
+      showWellbeing: true
+    };
+  };
+
+  // Get viewmode-specific greeting
+  const getGreeting = () => {
+    if (viewMode === 'right-now') {
+      return briefData?.greeting ? `${briefData.greeting} Focus on what's urgent right now.` : "Here's what needs your attention right now.";
+    }
+    return briefData?.greeting ? `${briefData.greeting} Let's wrap up what's happening. Your wellbeing matters - prioritize what's important.` : "Good day! Let's wrap up what's happening. Your wellbeing matters - prioritize what's important.";
+  };
+
+  // Immediate items for "Right Now" view
+  const immediateItems = getImmediateItems();
+
+  // Common button styles
+  const actionButtonStyle = {
+    minWidth: 'unset',
+    width: '40px',
+    height: '40px',
+    padding: '8px',
+    marginLeft: '4px',
+    borderRadius: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+  };
+
+  const buttonIconStyle = {
+    fontSize: '1.2rem',
+  };
+
+  const buttonLabelStyle = {
+    fontSize: '0.6rem',
+    lineHeight: 1,
+    marginTop: '2px',
+    textTransform: 'none',
+  };
+
+  const primaryButtonStyle = {
+    ...actionButtonStyle,
+    backgroundColor: isDarkMode ? '#3a8eff' : '#1976d2',
+    color: 'white',
+    '&:hover': {
+      backgroundColor: isDarkMode ? '#2979ff' : '#1565c0',
+    }
+  };
+
+  const secondaryButtonStyle = {
+    ...actionButtonStyle,
+    backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+    color: isDarkMode ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.7)',
+    '&:hover': {
+      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
     }
   };
 
@@ -222,10 +330,44 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
                 p: 0.5 
               }} 
             />
-            Your Daily Brief
+            Your {viewMode === 'right-now' ? 'Right Now' : 'Daily'} Brief
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {/* View toggle */}
+          <ToggleButtonGroup
+            size="small"
+            value={viewMode}
+            exclusive
+            onChange={handleViewModeChange}
+            aria-label="brief view mode"
+            sx={{ 
+              mr: 1,
+              '& .MuiToggleButton-root': {
+                borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
+                color: isDarkMode ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.6)',
+                fontSize: '0.75rem',
+                py: 0.5,
+                '&.Mui-selected': {
+                  color: isDarkMode ? '#fff' : '#1976d2',
+                  bgcolor: isDarkMode ? 'rgba(25, 118, 210, 0.2)' : 'rgba(25, 118, 210, 0.1)',
+                  '&:hover': {
+                    bgcolor: isDarkMode ? 'rgba(25, 118, 210, 0.3)' : 'rgba(25, 118, 210, 0.2)',
+                  },
+                },
+              }
+            }}
+          >
+            <ToggleButton value="daily" aria-label="daily view">
+              <TodayIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Daily
+            </ToggleButton>
+            <ToggleButton value="right-now" aria-label="right now view">
+              <UpdateIcon fontSize="small" sx={{ mr: 0.5 }} />
+              Right Now
+            </ToggleButton>
+          </ToggleButtonGroup>
+
           <Tooltip title="Mute notifications for 1 hour">
             <IconButton 
               size="small" 
@@ -246,7 +388,7 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <AccessTimeIcon sx={{ mr: 1, color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
             <Typography variant="body1" color={isDarkMode ? 'text.primary' : 'inherit'}>
-              {getGreeting()} Let's wrap up what's happening. Your wellbeing matters - prioritize what's important.
+              {getGreeting()}
             </Typography>
           </Box>
 
@@ -256,151 +398,130 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
             </Box>
           ) : (
             <>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <Badge 
-                    badgeContent={emailStats.unread} 
-                    color="primary" 
-                    sx={{ mr: 1 }}
-                  >
-                    <EmailIcon sx={{ color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
-                  </Badge>
-                  <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
-                    You have {emailStats.unread} unread emails
-                    {emailStats.high > 0 && `, including ${emailStats.high} marked as high priority`}.
+              {error && (
+                <Box sx={{ mb: 2, p: 1, bgcolor: 'rgba(255, 0, 0, 0.05)', borderRadius: 1, border: '1px solid rgba(255, 0, 0, 0.1)' }}>
+                  <Typography variant="body2" color="error" sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Box component="span" sx={{ mr: 1 }}>⚠️</Box> 
+                    {error}
                   </Typography>
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Tooltip title="Mark all as read">
-                    <Button 
-                      variant="outlined" 
-                      size="small"
-                      sx={{ px: 1 }}
-                      color={isDarkMode ? 'primary' : 'primary'}
-                      onClick={handleMarkAllAsRead}
+              )}
+              
+              {/* Conditionally show email info based on view mode */}
+              {(viewMode === 'daily' || immediateItems.showEmails) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <Badge 
+                      badgeContent={briefData?.email_summary?.unread_count || emailStats.unread} 
+                      color="primary" 
+                      sx={{ mr: 1 }}
                     >
-                      <CheckCircleIcon fontSize="small" />
-                    </Button>
-                  </Tooltip>
-                  <Button 
-                    variant="contained" 
-                    size="small"
-                    sx={{ fontSize: '0.7rem' }}
-                    color={isDarkMode ? 'primary' : 'primary'}
-                    onClick={handleEmailAction}
-                    startIcon={<LaunchIcon fontSize="small" />}
-                  >
-                    VIEW
-                  </Button>
-                </Box>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <EventIcon sx={{ mr: 1, color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
-                  <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
-                    {getCalendarSummary()}
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Tooltip title="Snooze upcoming events">
-                    <Button 
-                      variant="outlined" 
-                      size="small"
-                      sx={{ px: 1 }}
-                      color={isDarkMode ? 'primary' : 'primary'}
-                      onClick={handleSnoozeEvents}
-                    >
-                      <SnoozeIcon fontSize="small" />
-                    </Button>
-                  </Tooltip>
-                  <Button 
-                    variant="contained" 
-                    size="small"
-                    sx={{ fontSize: '0.7rem' }}
-                    color={isDarkMode ? 'primary' : 'primary'}
-                    onClick={handleCalendarAction}
-                    startIcon={<LaunchIcon fontSize="small" />}
-                  >
-                    VIEW
-                  </Button>
-                </Box>
-              </Box>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <Badge 
-                    badgeContent={
-                      <PriorityIcon sx={{ fontSize: 10, color: '#fff' }} />
-                    } 
-                    sx={{ mr: 1 }}
-                    color={getTaskPriorityLevel() === 'none' ? 'default' : 'error'}
-                    overlap="circular"
-                    invisible={getTaskPriorityLevel() === 'none'}
-                  >
-                    <TaskIcon sx={{ color: getTaskPriorityColor() }} />
-                  </Badge>
-                  <Box sx={{ flexGrow: 1 }}>
-                    <Typography variant="body1" color={isDarkMode ? 'text.primary' : 'inherit'}>
-                      {getTaskSummary()}
+                      <EmailIcon sx={{ color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
+                    </Badge>
+                    <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
+                      {viewMode === 'right-now' && (briefData?.email_summary?.high_priority_count || emailStats.high) > 0 ? (
+                        `You have ${briefData?.email_summary?.high_priority_count || emailStats.high} high priority emails that need attention.`
+                      ) : (
+                        `You have ${briefData?.email_summary?.unread_count || emailStats.unread} unread emails
+                        ${(briefData?.email_summary?.high_priority_count || emailStats.high) > 0 && 
+                          `, including ${briefData?.email_summary?.high_priority_count || emailStats.high} marked as high priority`}.`
+                      )}
                     </Typography>
-                    {getTaskPriorityLevel() !== 'none' && (
-                      <Chip 
-                        label={getTaskPriorityLevel() === 'high' ? 'High Priority' : getTaskPriorityLevel() === 'medium' ? 'Medium Priority' : 'Low Priority'} 
-                        size="small" 
-                        color={getTaskPriorityLevel() === 'high' ? 'error' : getTaskPriorityLevel() === 'medium' ? 'warning' : 'success'}
-                        sx={{ mt: 0.5, height: 20, fontSize: '0.65rem' }}
-                      />
-                    )}
                   </Box>
+                  <ActionButtons 
+                    type="email"
+                    onDoItNow={handleDoItNow}
+                    onDefer={handleDefer}
+                    onAskASTI={handleAskASTI}
+                    onAutoReply={handleAutoReply}
+                    showAutoReply={true}
+                  />
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {getTaskPriorityLevel() !== 'none' && (
-                    <Tooltip title="Complete first task">
-                      <Button 
-                        variant="outlined" 
-                        size="small"
-                        sx={{ px: 1 }}
-                        color={isDarkMode ? 'primary' : 'primary'}
-                        onClick={handleCompleteTask}
-                      >
-                        <CheckCircleIcon fontSize="small" />
-                      </Button>
-                    </Tooltip>
-                  )}
-                  <Button 
-                    variant="contained" 
-                    size="small"
-                    sx={{ fontSize: '0.7rem' }}
-                    color={isDarkMode ? 'primary' : 'primary'}
-                    onClick={handleTaskAction}
-                    startIcon={<LaunchIcon fontSize="small" />}
-                  >
-                    VIEW
-                  </Button>
-                </Box>
-              </Box>
+              )}
 
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
+              {/* Conditionally show calendar info based on view mode */}
+              {(viewMode === 'daily' || immediateItems.showCalendar) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <EventIcon sx={{ mr: 1, color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
+                    <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
+                      {briefData?.calendar_summary?.next_event 
+                        ? `Next: ${briefData.calendar_summary.next_event.title} at ${new Date(briefData.calendar_summary.next_event.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+                        : "Your calendar is clear for the rest of today."}
+                    </Typography>
+                  </Box>
+                  <ActionButtons 
+                    type="calendar"
+                    onDoItNow={handleDoItNow}
+                    onDefer={handleDefer}
+                    onAskASTI={handleAskASTI}
+                  />
+                </Box>
+              )}
+
+              {/* Conditionally show tasks info based on view mode */}
+              {(viewMode === 'daily' || immediateItems.showTasks) && (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <AssignmentIcon sx={{ mr: 1, color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
+                    <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
+                      {viewMode === 'right-now' && briefData?.task_summary?.urgent_tasks ? (
+                        `You have ${briefData.task_summary.urgent_tasks} urgent tasks needing immediate attention.`
+                      ) : (
+                        getTaskSummary()
+                      )}
+                    </Typography>
+                  </Box>
+                  <ActionButtons 
+                    type="task"
+                    onDoItNow={handleDoItNow}
+                    onDefer={handleDefer}
+                    onAskASTI={handleAskASTI}
+                  />
+                </Box>
+              )}
+
+              {/* Always show wellbeing info regardless of view mode */}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 1, bgcolor: isDarkMode ? 'rgba(33, 150, 243, 0.1)' : '#f5f9ff', borderRadius: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <WellbeingIcon sx={{ mr: 1, color: stressReport?.overallStress === 'HIGH' ? '#d32f2f' : stressReport?.overallStress === 'MEDIUM' ? '#ff9800' : '#388e3c' }} />
+                  <WellbeingIcon sx={{ mr: 1, color: isDarkMode ? '#42a5f5' : '#1976d2' }} />
                   <Typography variant="body1" sx={{ flexGrow: 1 }} color={isDarkMode ? 'text.primary' : 'inherit'}>
-                    {stressReportLoading ? "Analyzing your wellbeing data..." : getWellbeingMessage()}
+                    {viewMode === 'right-now' ? (
+                      briefData?.stress_factors && briefData.stress_factors.length > 0 
+                        ? `Managing: ${briefData.stress_factors[0]}. Take a moment to breathe.`
+                        : "Remember to take a moment for yourself during busy times."
+                    ) : (
+                      briefData?.wellbeing_suggestions && briefData.wellbeing_suggestions.length > 0 
+                        ? briefData.wellbeing_suggestions[0] 
+                        : "Take care of your wellbeing today."
+                    )}
                   </Typography>
                 </Box>
-                <Box>
-                  <Button 
-                    variant="contained" 
-                    size="small"
-                    sx={{ fontSize: '0.7rem' }}
-                    color={isDarkMode ? 'primary' : 'primary'}
-                    onClick={handleWellbeingAction}
-                    startIcon={<LaunchIcon fontSize="small" />}
-                  >
-                    MONITOR
-                  </Button>
-                </Box>
+                <ActionButtons 
+                  type="wellbeing"
+                  onDoItNow={handleDoItNow}
+                  onDefer={handleDefer}
+                  onAskASTI={handleAskASTI}
+                />
               </Box>
+
+              {/* Show memory insights only in Daily view */}
+              {viewMode === 'daily' && briefData?.memory_insights && briefData.memory_insights.length > 0 && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', p: 1, pt: 0, pb: 0 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1, color: isDarkMode ? 'text.secondary' : 'text.secondary' }}>
+                    Things to remember:
+                  </Typography>
+                  <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                    {briefData.memory_insights.map((insight, index) => (
+                      <li key={index}>
+                        <Typography variant="body2" sx={{ color: isDarkMode ? 'text.secondary' : 'text.secondary' }}>
+                          {insight.text}
+                        </Typography>
+                      </li>
+                    ))}
+                  </ul>
+                </Box>
+              )}
             </>
           )}
         </Box>

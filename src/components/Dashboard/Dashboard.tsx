@@ -458,12 +458,7 @@ export const Dashboard: React.FC = () => {
         
         {/* Daily Brief Section */}
         <Box mb={4}>
-          <DailyBrief 
-            unreadCount={emails.filter(e => !e.is_read).length}
-            eventsCount={3}
-            tasksCount={5}
-            stressLevel="LOW"
-          />
+          <DailyBrief />
         </Box>
         
         {/* Action Buttons - Just keep the SPEAK TO ME button */}

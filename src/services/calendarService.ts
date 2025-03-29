@@ -44,38 +44,60 @@ const mockEvents = [
 ];
 
 // Flag to control whether to use test data or real API
-const USE_TEST_DATA = true;
+const USE_TEST_DATA = process.env.NODE_ENV === 'development';
+
+// Create API client with timeout and proper error handling
+const apiClient = axios.create({
+  baseURL: API_URL,
+  timeout: 10000, // 10 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
 
 export const calendarService = {
   // Get calendar events for today
   getTodayEvents: async (): Promise<CalendarEvent[]> => {
     if (USE_TEST_DATA) {
       try {
-        // Try to get test data from backend first
-        const response = await fetch(`${API_URL}/api/test/calendar/events`);
+        console.log('Fetching test calendar events');
         
-        if (response.ok) {
-          const data = await response.json();
-          // Convert string dates to Date objects
-          return data.map((event: any) => ({
-            ...event,
-            start: new Date(event.start),
-            end: new Date(event.end),
-            type: event.type || determineEventType(event.title), // Fallback if type not provided
-            attendees: event.attendees || [] // Ensure attendees is always an array
-          }));
-        } else {
-          console.warn("Failed to fetch test calendar events from API, using mock data");
+        // For development, if no API is available, return mock data immediately
+        if (!API_URL || API_URL === '') {
+          console.log('No API URL configured, using mock calendar data');
           return mockEvents;
         }
+        
+        // Try to get test data from backend
+        const response = await apiClient.get('/api/test/calendar/events', {
+          // Shorter timeout for test data
+          timeout: 5000
+        });
+        
+        // Convert string dates to Date objects
+        return response.data.map((event: any) => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end),
+          type: event.type || determineEventType(event.title), // Fallback if type not provided
+          attendees: event.attendees || [] // Ensure attendees is always an array
+        }));
       } catch (error) {
         console.error("Error fetching test calendar events:", error);
+        console.log("Falling back to mock calendar data");
         return mockEvents;
       }
     } else {
       try {
         const token = localStorage.getItem('access_token');
-        const response = await axios.get(`${API_URL}/api/calendar/events/today`, {
+        
+        // If no token in development mode, return mock data
+        if (!token && process.env.NODE_ENV === 'development') {
+          console.log('No auth token available in development, using mock calendar data');
+          return mockEvents;
+        }
+        
+        const response = await apiClient.get('/api/calendar/events/today', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -99,11 +121,42 @@ export const calendarService = {
   // Get upcoming events (next 7 days)
   getUpcomingEvents: async (): Promise<CalendarEvent[]> => {
     if (USE_TEST_DATA) {
-      return mockEvents;
+      try {
+        // For development, if no API is available, return mock data immediately
+        if (!API_URL || API_URL === '') {
+          console.log('No API URL configured, using mock calendar data');
+          return mockEvents;
+        }
+        
+        // Try to get test data from backend
+        const response = await apiClient.get('/api/test/calendar/upcoming', {
+          // Shorter timeout for test data
+          timeout: 5000
+        });
+        
+        // Convert string dates to Date objects
+        return response.data.map((event: any) => ({
+          ...event,
+          start: new Date(event.start),
+          end: new Date(event.end),
+          type: event.type || determineEventType(event.title), // Fallback if type not provided
+          attendees: event.attendees || [] // Ensure attendees is always an array
+        }));
+      } catch (error) {
+        console.error("Error fetching upcoming test events:", error);
+        return mockEvents;
+      }
     } else {
       try {
         const token = localStorage.getItem('access_token');
-        const response = await axios.get(`${API_URL}/api/calendar/events/upcoming`, {
+        
+        // If no token in development mode, return mock data
+        if (!token && process.env.NODE_ENV === 'development') {
+          console.log('No auth token available in development, using mock calendar data');
+          return mockEvents;
+        }
+        
+        const response = await apiClient.get('/api/calendar/events/upcoming', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -128,10 +181,19 @@ export const calendarService = {
   createEvent: async (event: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await axios.post(`${API_URL}/api/calendar/events`, event, {
+      
+      // If in development and no token, simulate successful response
+      if (!token && process.env.NODE_ENV === 'development') {
+        console.log('Simulating event creation in development mode');
+        return {
+          ...event,
+          id: `mock-${Date.now()}`
+        } as CalendarEvent;
+      }
+      
+      const response = await apiClient.post('/api/calendar/events', event, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -150,10 +212,16 @@ export const calendarService = {
   updateEvent: async (event: CalendarEvent): Promise<CalendarEvent> => {
     try {
       const token = localStorage.getItem('access_token');
-      const response = await axios.put(`${API_URL}/api/calendar/events/${event.id}`, event, {
+      
+      // If in development and no token, simulate successful response
+      if (!token && process.env.NODE_ENV === 'development') {
+        console.log('Simulating event update in development mode');
+        return event;
+      }
+      
+      const response = await apiClient.put(`/api/calendar/events/${event.id}`, event, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -172,7 +240,14 @@ export const calendarService = {
   deleteEvent: async (eventId: string): Promise<boolean> => {
     try {
       const token = localStorage.getItem('access_token');
-      await axios.delete(`${API_URL}/api/calendar/events/${eventId}`, {
+      
+      // If in development and no token, simulate successful response
+      if (!token && process.env.NODE_ENV === 'development') {
+        console.log('Simulating event deletion in development mode');
+        return true;
+      }
+      
+      await apiClient.delete(`/api/calendar/events/${eventId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

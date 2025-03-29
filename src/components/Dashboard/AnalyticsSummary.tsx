@@ -28,7 +28,7 @@ const StatsCard = styled(Paper)(({ theme }) => ({
   },
 }));
 
-const StatValue = styled(Typography)(({ theme }) => ({
+const StatValue = styled(Box)(({ theme }) => ({
   fontSize: '1.5rem',
   fontWeight: 'bold',
   marginTop: theme.spacing(1),
@@ -79,7 +79,7 @@ export const AnalyticsSummary: React.FC = () => {
   const renderTrend = (trend: 'up' | 'down', change: string) => (
     <TrendIndicator trend={trend}>
       {trend === 'up' ? <TrendingUpIcon /> : <TrendingDownIcon />}
-      <Typography variant="body2">{change}</Typography>
+      <Box component="span" sx={{ fontSize: '0.875rem' }}>{change}</Box>
     </TrendIndicator>
   );
 
