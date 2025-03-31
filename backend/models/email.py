@@ -47,6 +47,12 @@ class Email(BaseModel):
     sentiment_score = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # AI analysis fields
+    ai_summary = Column(String, nullable=True)
+    ai_emotional_tone = Column(String, nullable=True)
+    ai_suggested_action = Column(JSON, nullable=True)
+    embedding_id = Column(String, nullable=True)
 
     user = relationship("User", back_populates="emails")
     category = relationship("Category", back_populates="emails")
@@ -84,5 +90,14 @@ class EmailAnalysis(BaseModel):
     action_required = Column(Boolean, default=False)
     explanation = Column(String)
     timestamp = Column(DateTime, default=func.now())
+    
+    # Enhanced ASTI analysis fields
+    emotional_tone = Column(String, nullable=True)
+    explicit_expectations = Column(JSON, nullable=True)  # List of strings
+    implicit_expectations = Column(JSON, nullable=True)  # List of strings
+    suggested_actions = Column(JSON, nullable=True)  # List of action objects
+    suggested_response = Column(Text, nullable=True)
+    needs_immediate_attention = Column(Boolean, default=False)
+    embedding_vector_id = Column(String, nullable=True)  # Reference to vector storage
 
     email = relationship("Email", back_populates="analysis")

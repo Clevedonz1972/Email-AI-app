@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Box, Typography, Paper, IconButton, Collapse, Badge, Button, CircularProgress, Tooltip, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Box, Typography, Paper, IconButton, Collapse, Badge, Button, CircularProgress, Tooltip, ToggleButtonGroup, ToggleButton, Card, CardContent, List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -23,9 +23,12 @@ import SendIcon from '@mui/icons-material/Send';
 import { useNavigate } from 'react-router-dom';
 import { useEmailContext } from '@/contexts/EmailContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import type { EmailMessage } from '@/types/email';
 import { aiService, DailyBriefData } from '@/services/aiService';
 import ActionButtons, { ActionType } from '@/components/shared/ActionButtons';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import TipsAndUpdatesIcon from '@mui/icons-material/TipsAndUpdates';
 
 // Use MUI for WellbeingIcon component
 const WellbeingIcon = FavoriteIcon;
@@ -33,11 +36,7 @@ const WellbeingIcon = FavoriteIcon;
 // ViewMode type
 type ViewMode = 'daily' | 'right-now';
 
-interface DailyBriefProps {
-  // Optional props can be added here as needed
-}
-
-export const DailyBrief: React.FC<DailyBriefProps> = () => {
+export const DailyBrief: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const { emails, loading: emailsLoading, stressReport, stressReportLoading, markAllAsRead } = useEmailContext();
@@ -47,7 +46,10 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { settings } = useSettings();
+  const { openSpeakToMe } = useDashboardContext();
   const isDarkMode = settings.darkMode;
+  const [aiBrief, setAiBrief] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Fetch the daily brief from ASTI
   const fetchDailyBrief = useCallback(async () => {
@@ -81,6 +83,34 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
       return () => clearTimeout(retryTimer);
     }
   }, [fetchDailyBrief, retryCount]);
+
+  useEffect(() => {
+    // Add this to fetch AI-powered brief
+    const fetchAiBrief = async () => {
+      try {
+        setAiLoading(true);
+        const response = await fetch('/api/asti/daily-brief', {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setAiBrief(data);
+        } else {
+          console.error('Failed to fetch AI brief');
+        }
+      } catch (error) {
+        console.error('Error fetching AI brief:', error);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+    
+    fetchAiBrief();
+  }, []);
 
   const handleExpandClick = () => {
     setExpanded(!expanded);
@@ -130,8 +160,8 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
   // Handler for "Ask ASTI" button
   const handleAskASTI = (type: ActionType) => {
     console.log(`Asking ASTI about ${type}`);
-    // This would trigger the ASTI dialog with context about this item
-    // For now, just show a confirmation in console
+    // Use the DashboardContext to open the SpeakToMe dialog
+    openSpeakToMe();
   };
 
   // Handler for "Auto-reply" button
@@ -293,6 +323,102 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
     }
   };
 
+  const renderAstiInsights = () => {
+    if (!aiBrief) return null;
+    
+    return (
+      <Card elevation={1} sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" alignItems="center" mb={2}>
+            <AutoAwesomeIcon color="primary" sx={{ mr: 1 }} />
+            <Typography variant="h6">ASTI Insights</Typography>
+          </Box>
+          
+          <Typography variant="h5" gutterBottom>
+            {aiBrief.greeting}
+          </Typography>
+          
+          <Typography variant="body1" paragraph>
+            {aiBrief.summary}
+          </Typography>
+          
+          {aiBrief.email_highlights && aiBrief.email_highlights.length > 0 && (
+            <>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                Important Emails
+              </Typography>
+              <List dense>
+                {aiBrief.email_highlights.map((email: any, index: number) => (
+                  <ListItem key={`email-${index}`} disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemIcon>
+                      {email.priority === 'HIGH' ? (
+                        <EmailIcon color="error" />
+                      ) : (
+                        <EmailIcon color="primary" />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={email.subject}
+                      secondary={email.summary}
+                      primaryTypographyProps={{
+                        fontWeight: email.priority === 'HIGH' ? 'bold' : 'normal',
+                      }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+          
+          {aiBrief.suggested_priorities && aiBrief.suggested_priorities.length > 0 && (
+            <>
+              <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ mt: 2 }}>
+                Suggested Priorities
+              </Typography>
+              <List dense>
+                {aiBrief.suggested_priorities.map((priority: any, index: number) => (
+                  <ListItem key={`priority-${index}`} disablePadding sx={{ mb: 0.5 }}>
+                    <ListItemIcon>
+                      <AssignmentIcon color="secondary" />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={priority.task}
+                      secondary={priority.reason}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+          
+          {aiBrief.wellbeing_suggestion && (
+            <Box 
+              sx={{ 
+                mt: 2, 
+                p: 1.5, 
+                bgcolor: 'primary.light', 
+                color: 'primary.contrastText',
+                borderRadius: 1,
+                display: 'flex',
+                alignItems: 'flex-start'
+              }}
+            >
+              <TipsAndUpdatesIcon sx={{ mr: 1, mt: 0.3 }} />
+              <Box>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Wellbeing Tip
+                </Typography>
+                <Typography variant="body2">
+                  {aiBrief.wellbeing_suggestion}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <Paper 
       sx={{ 
@@ -422,9 +548,11 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
                       {viewMode === 'right-now' && (briefData?.email_summary?.high_priority_count || emailStats.high) > 0 ? (
                         `You have ${briefData?.email_summary?.high_priority_count || emailStats.high} high priority emails that need attention.`
                       ) : (
-                        `You have ${briefData?.email_summary?.unread_count || emailStats.unread} unread emails
-                        ${(briefData?.email_summary?.high_priority_count || emailStats.high) > 0 && 
-                          `, including ${briefData?.email_summary?.high_priority_count || emailStats.high} marked as high priority`}.`
+                        `You have ${briefData?.email_summary?.unread_count || emailStats.unread} unread emails${
+                          (briefData?.email_summary?.high_priority_count || emailStats.high) > 0 
+                          ? `, including ${briefData?.email_summary?.high_priority_count || emailStats.high} marked as high priority` 
+                          : ''
+                        }.`
                       )}
                     </Typography>
                   </Box>
@@ -522,6 +650,8 @@ export const DailyBrief: React.FC<DailyBriefProps> = () => {
                   </ul>
                 </Box>
               )}
+
+              {renderAstiInsights()}
             </>
           )}
         </Box>

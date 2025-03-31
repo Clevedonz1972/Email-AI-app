@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from fastapi import HTTPException, Security, Depends, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import HTTPException, Security, Depends, status, Request
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security.oauth2 import OAuth2, OAuthFlowsModel
+from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
+from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy.orm import Session
 from backend.models.user import User
 from backend.database import get_db
@@ -12,6 +15,34 @@ import os
 
 # Security configuration
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+
+# Create a custom OAuth2 scheme that doesn't raise an exception when no token is provided
+class OptionalOAuth2PasswordBearer(OAuth2):
+    def __init__(
+        self,
+        tokenUrl: str,
+        scheme_name: str = None,
+        scopes: dict = None,
+        auto_error: bool = False,
+    ):
+        if not scopes:
+            scopes = {}
+        flows = OAuthFlowsModel(password={"tokenUrl": tokenUrl, "scopes": scopes})
+        super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
+
+    async def __call__(self, request: Request = None):
+        header_authorization = request.headers.get("Authorization") if request else None
+        if not header_authorization:
+            return None
+        
+        scheme, param = get_authorization_scheme_param(header_authorization)
+        if scheme.lower() != "bearer":
+            return None
+            
+        return param
+
+# Optional OAuth2 for testing routes
+optional_oauth2_scheme = OptionalOAuth2PasswordBearer(tokenUrl="auth/token")
 
 # Constants
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
@@ -84,3 +115,23 @@ async def get_current_active_user(
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
+
+
+async def get_optional_current_user(
+    token: Optional[str] = Depends(optional_oauth2_scheme), 
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """Get current user if authenticated, otherwise return None for testing routes"""
+    if not token:
+        return None
+        
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+
+        user = db.query(User).filter(User.id == user_id).first()
+        return user
+    except:
+        return None

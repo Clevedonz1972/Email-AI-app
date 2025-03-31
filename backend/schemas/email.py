@@ -37,6 +37,12 @@ class EmailAnalysisResponse(BaseModel):
     summary: str
     action_items: List[str]
     sentiment_score: float
+    emotional_tone: Optional[str] = None
+    explicit_expectations: Optional[List[str]] = None
+    implicit_expectations: Optional[List[str]] = None
+    suggested_actions: Optional[List[Dict[str, Any]]] = None
+    suggested_response: Optional[str] = None
+    needs_immediate_attention: Optional[bool] = None
 
 
 class EmailReplyRequest(BaseModel):
@@ -71,6 +77,17 @@ class EmailReplyPreview(BaseModel):
     accessibility_suggestions: Optional[List[str]]
 
 
+class EmailAIAnalysis(BaseModel):
+    summary: str
+    emotional_tone: str
+    stress_level: str
+    explicit_expectations: List[str] = []
+    implicit_expectations: List[str] = []
+    suggested_actions: List[Dict[str, Any]] = []
+    suggested_response: Optional[str] = None
+    needs_immediate_attention: bool = False
+
+
 class EmailResponse(EmailBase):
     id: int
     user_id: int
@@ -82,6 +99,12 @@ class EmailResponse(EmailBase):
     summary: Optional[str]
     action_items: Optional[List[str]]
     sentiment_score: Optional[float]
+    
+    # AI analysis fields
+    ai_summary: Optional[str] = None
+    ai_emotional_tone: Optional[str] = None
+    ai_suggested_action: Optional[List[Dict[str, Any]]] = None
+    embedding_id: Optional[str] = None
 
     class Config:
         orm_mode = True

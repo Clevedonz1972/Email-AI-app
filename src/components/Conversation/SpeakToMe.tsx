@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { aiService, ConversationMessage, OpenAIVoice } from '@/services/aiService';
+import { EmailMessage } from '@/types/email';
 
 // Add keyframes animation for the swirl effect
 const swirl = keyframes`
@@ -108,9 +109,11 @@ declare global {
 interface SpeakToMeProps {
   open: boolean;
   onClose: () => void;
+  contextEmail?: EmailMessage;
+  initialMessage?: string | null;
 }
 
-export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
+export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose, contextEmail, initialMessage }) => {
   const theme = useTheme();
   const [messages, setMessages] = useLocalStorage<ConversationMessage[]>('asti-conversation', []);
   const [inputText, setInputText] = useState('');
@@ -149,6 +152,90 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const gestureTimeoutRef = useRef<number | null>(null);
+  
+  // Generate prompt with email context
+  const generatePromptWithContext = (userText: string, email?: EmailMessage) => {
+    if (!email) return userText;
+    
+    // Create a prompt that includes email context
+    return `
+      I'm looking at this email:
+      From: ${email.sender.name} (${email.sender.email})
+      Subject: ${email.subject}
+      Date: ${new Date(email.timestamp).toLocaleString()}
+      
+      Email content:
+      ${email.content.slice(0, 1000)}${email.content.length > 1000 ? '...' : ''}
+      
+      My question/request: ${userText}
+    `;
+  };
+  
+  // Add suggestions based on email context
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  
+  // Generate suggestions based on email context
+  useEffect(() => {
+    if (contextEmail && open) {
+      // If in mock mode, use static suggestions
+      if (useMockResponses) {
+        setSuggestions([
+          "Summarize this email for me",
+          "Help me write a reply",
+          "What's the main action needed?",
+          "What tone is this email using?",
+          "Draft a response in simple language"
+        ]);
+        return;
+      }
+      
+      // Generate suggestions from the AI
+      setIsThinking(true);
+      const basePrompt = `
+        This is an email:
+        From: ${contextEmail.sender.name} (${contextEmail.sender.email})
+        Subject: ${contextEmail.subject}
+        Content: ${contextEmail.content.slice(0, 500)}...
+        
+        Generate 5 short, helpful actions I might want to take with this email.
+        Each suggestion should be under 10 words. Return just the list with no additional text.
+      `;
+      
+      // Call AI service to get suggestions
+      aiService.sendMessage(basePrompt, [], {})
+        .then(response => {
+          // Parse suggestions from response
+          try {
+            // Split by newlines and cleanup
+            const lines = response.text.split('\n')
+              .map(line => line.trim())
+              .filter(line => line.length > 0 && line.length < 50)
+              .map(line => line.replace(/^\d+\.\s*/, '')) // Remove numbering
+              .filter(line => !line.startsWith("Here are") && !line.includes("suggestions")); // Remove intro text
+            
+            setSuggestions(lines.slice(0, 5));
+          } catch (err) {
+            console.error('Error parsing suggestions:', err);
+            setSuggestions([
+              "Summarize this email for me",
+              "Help me write a reply",
+              "What's the main action needed?"
+            ]);
+          }
+        })
+        .catch(err => {
+          console.error('Error generating suggestions:', err);
+          setSuggestions([
+            "Summarize this email for me",
+            "Help me write a reply",
+            "What's the main action needed?"
+          ]);
+        })
+        .finally(() => {
+          setIsThinking(false);
+        });
+    }
+  }, [contextEmail, open, useMockResponses]);
   
   // Initialize speech recognition
   useEffect(() => {
@@ -407,113 +494,108 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
     };
   }, [open, gestureMode, isListening, isThinking, isSpeaking, setGestureMode]);
   
-  // Add a user message to the conversation
-  const addUserMessage = async (text: string) => {
-    // If text is empty and in continuous mode, don't add a message
-    if (!text.trim() && continuousMode) return;
+  // Add initial message when dialogue opens with new context
+  useEffect(() => {
+    if (open && initialMessage && initialMessage.trim()) {
+      // Check if this is a new conversation or the last message isn't the same
+      const isNewConversation = messages.length === 0;
+      const isDifferentMessage = messages.length > 0 && 
+        messages[messages.length - 1].sender === 'asti' && 
+        messages[messages.length - 1].text !== initialMessage;
+      
+      if (isNewConversation || isDifferentMessage) {
+        const welcomeMessage: ConversationMessage = {
+          id: aiService.generateMessageId(),
+          text: initialMessage,
+          sender: 'asti',
+          timestamp: Date.now()
+        };
+        
+        setMessages(prev => [...prev, welcomeMessage]);
+      }
+    }
+  }, [open, initialMessage, messages, setMessages]);
+  
+  // Handle send message to include context
+  const handleSendMessage = () => {
+    if (!inputText.trim()) return;
     
-    const newMessage: ConversationMessage = {
+    const text = inputText.trim();
+    
+    const newUserMessage: ConversationMessage = {
       id: aiService.generateMessageId(),
-      text,
+      text: text, // Show original user text in UI
       sender: 'user',
       timestamp: Date.now()
     };
     
-    const updatedMessages = [...messages, newMessage];
-    setMessages(updatedMessages);
-    
-    // Indicate that ASTI is thinking
+    setMessages(prevMessages => [...prevMessages, newUserMessage]);
+    setInputText('');
     setIsThinking(true);
     
-    try {
-      // If mock responses are enabled, use the local mock functionality
-      if (useMockResponses) {
-        const mockResponse = aiService.getMockResponse(text);
-        addAstiMessage(mockResponse.text);
-        return;
-      }
-      
-      // Otherwise continue with actual API calls
-      // If we have audio, send the audio blob to the AI service
-      if (audioRecording) {
-        const response = await aiService.sendAudio(
-          audioRecording, 
-          updatedMessages,
-          { 
-            requestAudio: useTTS,
-            voice: selectedVoice
-          }
-        );
-        addAstiMessage(response.text, response.audio);
+    // Use audio recording if available and speech not in progress
+    if (audioRecording && !isSpeaking) {
+      aiService.sendAudio(audioRecording, messages, {
+        requestAudio: useTTS,
+        voice: selectedVoice
+      })
+      .then(handleAIResponse)
+      .catch(handleAIError)
+      .finally(() => {
         setAudioRecording(null);
-      } else {
-        // Otherwise, send the text message
-        const response = await aiService.sendMessage(
-          text, 
-          updatedMessages,
-          { 
+        setIsThinking(false);
+      });
+    } else {
+      // Prepare context object if we have contextual information
+      const context = contextEmail ? { email: contextEmail } : undefined;
+      
+      // Using async/await with a self-executing async function for better error handling
+      (async () => {
+        try {
+          // Send message with context to AI using the enhanced method
+          const response = await aiService.sendMessageWithContext(text, messages, context, {
             requestAudio: useTTS,
             voice: selectedVoice
-          }
-        );
-        addAstiMessage(response.text, response.audio);
-      }
-    } catch (error) {
-      console.error('Error getting AI response:', error);
-      setError('Failed to get a response. Please try again.');
-      setIsThinking(false);
+          });
+          
+          handleAIResponse(response);
+        } catch (error) {
+          handleAIError(error);
+        } finally {
+          setIsThinking(false);
+        }
+      })();
     }
   };
   
-  // Add an ASTI message to the conversation
-  const addAstiMessage = (text: string, audioBase64?: string) => {
-    const newMessage: ConversationMessage = {
-      id: aiService.generateMessageId(),
-      text,
-      sender: 'asti',
-      timestamp: Date.now()
-    };
+  // Render suggestions UI
+  const renderSuggestions = () => {
+    if (!contextEmail || suggestions.length === 0) return null;
     
-    setMessages([...messages, newMessage]);
-    setIsThinking(false);
-    
-    // If we have an audio response and TTS is enabled, play it
-    if (audioBase64 && useTTS) {
-      playAudioResponse(audioBase64, text);
-    } else if (useTTS) {
-      // Fall back to browser TTS if we don't have audio response but TTS is enabled
-      speakText(text);
-    } else if (continuousMode) {
-      // If TTS is disabled but in continuous mode, restart listening after a short delay
-      setTimeout(restartListening, 500);
-    }
-  };
-  
-  // Play audio from base64 string
-  const playAudioResponse = (audioBase64: string, fallbackText: string) => {
-    try {
-      setIsSpeaking(true);
-      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
-      audio.onended = () => {
-        setIsSpeaking(false);
-        // If in continuous mode, restart listening after speaking ends
-        if (continuousMode) {
-          restartListening();
-        }
-      };
-      audioRef.current = audio;
-      audio.play().catch(error => {
-        console.error('Error playing audio:', error);
-        setIsSpeaking(false);
-        if (continuousMode) {
-          restartListening();
-        }
-      });
-    } catch (error) {
-      console.error('Error playing audio response:', error);
-      // Fall back to speech synthesis
-      speakText(fallbackText);
-    }
+    return (
+      <Box sx={{ mt: 2, mb: 2 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Suggested actions:
+        </Typography>
+        <Box display="flex" flexWrap="wrap" gap={1}>
+          {suggestions.map((suggestion, index) => (
+            <Button
+              key={index}
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                setInputText(suggestion);
+                // Use setTimeout to allow the input to update before sending
+                setTimeout(() => handleSendMessage(), 10);
+              }}
+              sx={{ mb: 1 }}
+            >
+              {suggestion}
+            </Button>
+          ))}
+        </Box>
+      </Box>
+    );
   };
   
   // Start audio recording
@@ -609,23 +691,6 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
     setGestureMode(!gestureMode);
   };
   
-  // Handle sending a message
-  const handleSendMessage = () => {
-    if (!inputText.trim()) return;
-    
-    addUserMessage(inputText);
-    setInputText('');
-    
-    // Stop listening after sending message
-    if (isListening && !continuousMode) {
-      if (speechRecognition.current) {
-        speechRecognition.current.stop();
-      }
-      stopAudioRecording();
-      setIsListening(false);
-    }
-  };
-  
   // Handle key press (Enter to send)
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -667,17 +732,74 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
     setSelectedVoice(event.target.value as OpenAIVoice);
   };
   
-  // Clear conversation history
-  const handleClearConversation = () => {
-    if (window.confirm('Are you sure you want to clear the entire conversation history? This cannot be undone.')) {
-      setMessages([]);
-      // Add a welcome message after clearing
-      setTimeout(() => {
-        addAstiMessage(
-          "I've cleared our conversation history. How can I help you now?"
-        );
-      }, 500);
+  // Handle AI response
+  const handleAIResponse = (response: { text: string; audio?: string }) => {
+    const newMessage: ConversationMessage = {
+      id: aiService.generateMessageId(),
+      text: response.text,
+      sender: 'asti',
+      timestamp: Date.now()
+    };
+    
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+    
+    // If we have an audio response and TTS is enabled, play it
+    if (response.audio && useTTS) {
+      playAudioResponse(response.audio);
+    } else if (useTTS) {
+      // Fall back to browser TTS if we don't have audio response but TTS is enabled
+      speakText(response.text);
+    } else if (continuousMode) {
+      // If TTS is disabled but in continuous mode, restart listening after a short delay
+      setTimeout(restartListening, 500);
     }
+  };
+  
+  // Handle AI error
+  const handleAIError = (error: any) => {
+    console.error('Error getting AI response:', error);
+    setError('Failed to get a response. Please try again.');
+  };
+  
+  // Play audio from base64 string
+  const playAudioResponse = (audioBase64: string) => {
+    try {
+      setIsSpeaking(true);
+      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      audio.onended = () => {
+        setIsSpeaking(false);
+        // If in continuous mode, restart listening after speaking ends
+        if (continuousMode) {
+          restartListening();
+        }
+      };
+      audioRef.current = audio;
+      audio.play().catch(error => {
+        console.error('Error playing audio:', error);
+        setIsSpeaking(false);
+        if (continuousMode) {
+          restartListening();
+        }
+      });
+    } catch (error) {
+      console.error('Error playing audio response:', error);
+      setIsSpeaking(false);
+    }
+  };
+  
+  // Clear conversation
+  const handleClearConversation = () => {
+    setMessages([]);
+    
+    // Add welcome message
+    const welcomeMessage: ConversationMessage = {
+      id: aiService.generateMessageId(),
+      text: "I've cleared our conversation history. How else can I help you today?",
+      sender: 'asti',
+      timestamp: Date.now()
+    };
+    
+    setMessages([welcomeMessage]);
   };
   
   // Get voice display name
@@ -706,515 +828,317 @@ export const SpeakToMe: React.FC<SpeakToMeProps> = ({ open, onClose }) => {
       onClose={onClose}
       fullWidth
       maxWidth="md"
-      aria-labelledby="speak-to-me-dialog"
+      sx={{
+        '& .MuiDialog-paper': {
+          height: '80vh',
+          display: 'flex',
+          flexDirection: 'column',
+        },
+      }}
     >
       <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Speak to Me - ASTI Conversation</Typography>
-          <Box display="flex" alignItems="center">
-            {connectionStatus === 'connecting' && (
-              <Tooltip title="Connecting to backend...">
-                <CircularProgress size={20} sx={{ mr: 1 }} />
-              </Tooltip>
-            )}
-            {connectionStatus === 'connected' && (
-              <Tooltip title="Connected to backend">
-                <Box 
-                  component="span" 
-                  sx={{ 
-                    width: 12, 
-                    height: 12, 
-                    borderRadius: '50%', 
-                    bgcolor: 'success.main',
-                    display: 'inline-block',
-                    mr: 1
-                  }} 
-                />
-              </Tooltip>
-            )}
-            {connectionStatus === 'error' && (
-              <Tooltip title="Connection error">
-                <Box 
-                  component="span" 
-                  sx={{ 
-                    width: 12, 
-                    height: 12, 
-                    borderRadius: '50%', 
-                    bgcolor: 'error.main',
-                    display: 'inline-block',
-                    mr: 1
-                  }} 
-                />
-              </Tooltip>
-            )}
-            
-            {/* Gesture mode toggle */}
-            <Tooltip title={gestureMode ? "Disable gesture control" : "Enable gesture control"}>
-              <IconButton 
-                onClick={toggleGestureMode}
-                color={gestureMode ? "secondary" : "default"}
-                sx={{ mr: 1 }}
-              >
-                <Badge
-                  variant="dot"
-                  color="secondary"
-                  invisible={!cameraActive}
-                >
-                  {gestureMode ? <VideocamIcon /> : <VideocamOffIcon />}
-                </Badge>
-              </IconButton>
-            </Tooltip>
-            
-            <Tooltip title="Conversation Settings">
-              <IconButton onClick={() => setShowSettings(!showSettings)}>
-                <SettingsIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
+        {contextEmail ? `AI Assistant - ${contextEmail.subject}` : 'AI Assistant'}
+        <IconButton
+          aria-label="close"
+          onClick={onClose}
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+          }}
+        >
+          <DeleteIcon />
+        </IconButton>
       </DialogTitle>
       
-      <Collapse in={showSettings}>
-        <Box sx={{ px: 3, pb: 2 }}>
-          <Typography variant="subtitle1" gutterBottom>Settings</Typography>
-          
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>Conversation</Typography>
-              
-              <Box display="flex" gap={1} mb={2}>
-                <Tooltip title="Clear Conversation History">
-                  <Button 
-                    color="error" 
-                    startIcon={<DeleteIcon />}
-                    onClick={handleClearConversation}
-                    variant="outlined"
-                    size="small"
-                  >
-                    Clear History
-                  </Button>
-                </Tooltip>
-                <Tooltip title="Reset ASTI">
-                  <Button 
-                    color="primary" 
-                    startIcon={<RefreshIcon />}
-                    onClick={() => {
-                      setMessages([]);
-                      addAstiMessage(
-                        "Hi, I'm ASTI! I've been reset and I'm ready to chat. How can I help you today?"
-                      );
-                    }}
-                    variant="outlined"
-                    size="small"
-                  >
-                    Reset ASTI
-                  </Button>
-                </Tooltip>
-              </Box>
-              
-              <FormControlLabel
-                control={
-                  <Switch 
-                    checked={continuousMode} 
-                    onChange={toggleContinuousMode}
-                    color="secondary"
-                  />
-                }
-                label="Continuous Conversation Mode"
-              />
-              <Typography variant="caption" sx={{ display: 'block', mt: -0.5, mb: 2 }}>
-                Enables natural back-and-forth without pressing the mic button repeatedly
-              </Typography>
-              
-              <FormControlLabel
-                control={
-                  <Switch 
-                    checked={gestureMode} 
-                    onChange={toggleGestureMode}
-                    color="secondary"
-                  />
-                }
-                label="Gesture Control"
-              />
-              <Typography variant="caption" sx={{ display: 'block', mt: -0.5, mb: 2 }}>
-                Wave your hand to start listening (requires camera access)
-              </Typography>
-              
-              <FormControlLabel
-                control={
-                  <Switch 
-                    checked={useMockResponses} 
-                    onChange={(e) => setUseMockResponses(e.target.checked)}
-                  />
-                }
-                label="Use Mock Responses"
-              />
-              <Typography variant="caption" sx={{ display: 'block', mt: -0.5, mb: 2 }}>
-                Enable for offline use or when backend is unavailable
-              </Typography>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>Voice Settings</Typography>
-              
-              <FormControlLabel
-                control={
-                  <Switch 
-                    checked={useTTS} 
-                    onChange={(e) => setUseTTS(e.target.checked)}
-                  />
-                }
-                label="Enable Text-to-Speech"
-                sx={{ mb: 2 }}
-              />
-              
-              <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                <InputLabel id="voice-select-label">OpenAI Voice</InputLabel>
-                <Select
-                  labelId="voice-select-label"
-                  value={selectedVoice}
-                  onChange={handleVoiceChange}
-                  label="OpenAI Voice"
-                  disabled={!useTTS}
-                >
-                  {Object.values(OpenAIVoice).map((voice) => (
-                    <MenuItem key={voice} value={voice}>
-                      {getVoiceDisplayName(voice)}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              
-              <Button 
-                variant="outlined" 
-                size="small" 
-                onClick={() => {
-                  // Test voice by getting a sample response
-                  if (useMockResponses) {
-                    // In mock mode, just use browser TTS
-                    speakText("This is how your selected OpenAI voice will sound. With the actual API connected, you'll hear high-quality speech synthesis.");
-                  } else {
-                    // Otherwise attempt to get an actual sample from OpenAI
-                    setIsThinking(true);
-                    aiService.sendMessage(
-                      "Please provide a brief voice sample saying: 'Hello, I'm ASTI, your AI assistant.'", 
-                      [],
-                      { requestAudio: true, voice: selectedVoice }
-                    ).then(response => {
-                      setIsThinking(false);
-                      if (response.audio) {
-                        playAudioResponse(response.audio, response.text);
-                      } else {
-                        speakText("Could not retrieve an audio sample from OpenAI. Please check your connection.");
-                      }
-                    }).catch(error => {
-                      setIsThinking(false);
-                      setError("Could not get a voice sample. Please try again later.");
-                      console.error("Error getting voice sample:", error);
-                    });
-                  }
-                }}
-                startIcon={<SpeakIcon />}
-                disabled={!useTTS}
-              >
-                Test Voice
-              </Button>
-            </Grid>
-          </Grid>
-        </Box>
-        <Divider />
-      </Collapse>
-      
-      <DialogContent>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
+      <DialogContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', p: 0 }}>
+        {/* Connection status alert */}
+        {connectionStatus === 'error' && (
+          <Alert severity="error" sx={{ m: 2 }}>
+            Unable to connect to AI service. {useMockResponses ? 'Using mock responses.' : 'Try enabling mock responses in settings.'}
           </Alert>
         )}
         
-        <Box sx={{ 
-          height: '400px', 
-          overflowY: 'auto', 
-          p: 2, 
-          bgcolor: theme.palette.background.paper,
-          borderRadius: 1,
-          boxShadow: 'inset 0 0 10px rgba(0,0,0,0.1)',
-          position: 'relative'
-        }}>
+        {/* Settings panel */}
+        <Collapse in={showSettings}>
+          <Paper sx={{ m: 2, p: 2 }}>
+            <Typography variant="h6" gutterBottom>Settings</Typography>
+            
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel id="voice-select-label">AI Voice</InputLabel>
+                  <Select
+                    labelId="voice-select-label"
+                    value={selectedVoice}
+                    label="AI Voice"
+                    onChange={(e: SelectChangeEvent) => setSelectedVoice(e.target.value as OpenAIVoice)}
+                  >
+                    <MenuItem value={OpenAIVoice.NOVA}>Nova (Warm, optimistic)</MenuItem>
+                    <MenuItem value={OpenAIVoice.ALLOY}>Alloy (Neutral, versatile)</MenuItem>
+                    <MenuItem value={OpenAIVoice.ECHO}>Echo (Neutral, analytical)</MenuItem>
+                    <MenuItem value={OpenAIVoice.FABLE}>Fable (Expressive, youthful)</MenuItem>
+                    <MenuItem value={OpenAIVoice.ONYX}>Onyx (Deep, authoritative)</MenuItem>
+                    <MenuItem value={OpenAIVoice.SHIMMER}>Shimmer (Clear, friendly)</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={useTTS}
+                      onChange={(e) => setUseTTS(e.target.checked)}
+                    />
+                  }
+                  label="Enable AI speech"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={continuousMode}
+                      onChange={(e) => setContinuousMode(e.target.checked)}
+                    />
+                  }
+                  label="Continuous conversation"
+                />
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={useMockResponses}
+                      onChange={(e) => setUseMockResponses(e.target.checked)}
+                    />
+                  }
+                  label="Use mock responses"
+                />
+              </Grid>
+            </Grid>
+          </Paper>
+        </Collapse>
+        
+        {/* Messages container */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            overflowY: 'auto',
+            p: 2,
+            bgcolor: theme.palette.background.default,
+          }}
+        >
           {messages.length === 0 ? (
-            <Box 
-              display="flex" 
-              flexDirection="column" 
-              justifyContent="center" 
-              alignItems="center" 
-              height="100%" 
-              color="text.secondary"
+            <Box
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+              height="100%"
               textAlign="center"
               p={3}
             >
-              <Typography variant="body1" gutterBottom>
-                Welcome to your conversation with ASTI.
+              <Typography variant="h6" gutterBottom>
+                Welcome to your AI Assistant
               </Typography>
-              <Typography variant="body2">
-                Start speaking or typing to begin. Everything you share is kept private.
+              <Typography variant="body1" color="text.secondary">
+                {contextEmail 
+                  ? "I'm here to help you with this email. Ask me anything about it!" 
+                  : "Ask me anything! I'm here to help with your tasks and questions."}
               </Typography>
+              
+              {/* Show suggestions if we have an email context */}
+              {renderSuggestions()}
             </Box>
           ) : (
-            messages.map((message) => (
-              <Box 
-                key={message.id}
-                sx={{ 
-                  mb: 2, 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  alignItems: message.sender === 'user' ? 'flex-end' : 'flex-start'
-                }}
-              >
-                <Paper 
-                  elevation={1}
-                  sx={{ 
-                    p: 2, 
-                    maxWidth: '80%',
-                    borderRadius: 2,
-                    bgcolor: message.sender === 'user' 
-                      ? theme.palette.primary.light
-                      : theme.palette.background.default,
-                    color: message.sender === 'user' 
-                      ? theme.palette.primary.contrastText
-                      : theme.palette.text.primary
+            <>
+              {messages.map((msg) => (
+                <Box
+                  key={msg.id}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
+                    mb: 2,
                   }}
                 >
-                  <Typography variant="body1">
-                    {message.text}
-                  </Typography>
-                  
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      mt: 1,
-                      pt: 1,
-                      borderTop: '1px solid',
-                      borderColor: message.sender === 'user' 
-                        ? 'rgba(255,255,255,0.2)'
-                        : 'rgba(0,0,0,0.1)',
-                      opacity: 0.7,
-                      fontSize: '0.75rem'
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2,
+                      maxWidth: '70%',
+                      bgcolor:
+                        msg.sender === 'user'
+                          ? theme.palette.primary.main
+                          : theme.palette.background.paper,
+                      color:
+                        msg.sender === 'user'
+                          ? theme.palette.primary.contrastText
+                          : theme.palette.text.primary,
+                      borderRadius: 2,
                     }}
                   >
-                    <span>
-                      {message.sender === 'user' ? 'You' : 'ASTI'}
-                    </span>
-                    
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Typography variant="caption" sx={{ mr: 1 }}>
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </Typography>
-                      
-                      {message.sender === 'asti' && useTTS && (
-                        <Tooltip title="Speak this response">
-                          <IconButton 
-                            size="small"
-                            onClick={() => speakText(message.text)}
-                          >
-                            <SpeakIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  </Box>
-                </Paper>
-              </Box>
-            ))
-          )}
-          
-          {isThinking && (
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-              <CircularProgress size={20} sx={{ mr: 2 }} />
-              <Typography color="text.secondary">ASTI is thinking...</Typography>
-            </Box>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </Box>
-        
-        {/* Hidden video for gesture detection */}
-        {gestureMode && (
-          <Box sx={{ position: 'fixed', top: '-9999px', left: '-9999px', visibility: 'hidden' }}>
-            <video
-              ref={videoRef}
-              autoPlay={true}
-              playsInline={true}
-              muted={true}
-            />
-            <canvas ref={canvasRef} />
-          </Box>
-        )}
-      </DialogContent>
-      
-      <DialogActions sx={{ 
-        p: 2, 
-        bgcolor: theme.palette.background.paper,
-        borderTop: `1px solid ${theme.palette.divider}`
-      }}>
-        <Box sx={{ display: 'flex', width: '100%', alignItems: 'flex-end' }}>
-          {/* Mic button with mode selection */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mr: 2 }}>
-            {/* Continuous Mode Button with Animation */}
-            {continuousMode ? (
-              <Tooltip title={isListening ? "Stop Continuous Listening" : "Start Continuous Listening"}>
-                <Fab 
-                  color={isListening ? "secondary" : "primary"} 
-                  aria-label="continuous-microphone"
-                  onClick={toggleListening}
-                  size="medium"
-                  sx={{ 
-                    position: 'relative',
-                    animation: isListening ? `${swirl} 3s infinite` : 'none',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      width: '100%',
-                      height: '100%',
-                      borderRadius: '50%',
-                      background: isListening ? theme.palette.secondary.main : theme.palette.primary.main,
-                      opacity: 0.7,
-                      animation: isListening ? `${pulseRing} 2s infinite` : 'none'
-                    }
+                    <Typography variant="body1" style={{ whiteSpace: 'pre-wrap' }}>
+                      {msg.text}
+                    </Typography>
+                  </Paper>
+                </Box>
+              ))}
+              
+              {/* Show thinking indicator */}
+              {isThinking && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    mb: 2,
                   }}
                 >
-                  <ContinuousMicIcon />
-                </Fab>
-              </Tooltip>
-            ) : (
-              <Tooltip title={isListening ? "Stop listening" : "Start voice input"}>
-                <Fab 
-                  color={isListening ? "secondary" : "primary"} 
-                  aria-label="microphone"
-                  onClick={toggleListening}
-                  size="medium"
-                  sx={{ boxShadow: isListening ? 5 : 2 }}
-                >
-                  {isListening ? <MicOffIcon /> : <MicIcon />}
-                </Fab>
-              </Tooltip>
-            )}
-            
-            {/* Mode Toggle Switch */}
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={continuousMode} 
-                  onChange={toggleContinuousMode}
-                  size="small"
-                  color="secondary"
-                />
-              }
-              label="Continuous"
-              sx={{ 
-                mt: 1, 
-                '& .MuiFormControlLabel-label': { 
-                  fontSize: '0.75rem',
-                  opacity: 0.8
+                  <Paper
+                    elevation={1}
+                    sx={{
+                      p: 2,
+                      maxWidth: '70%',
+                      bgcolor: theme.palette.background.paper,
+                      borderRadius: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    <Typography variant="body1">Thinking...</Typography>
+                  </Paper>
+                </Box>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </Box>
+        
+        {/* Input area */}
+        <Paper
+          elevation={3}
+          sx={{
+            p: 2,
+            borderTop: `1px solid ${theme.palette.divider}`,
+            borderRadius: 0,
+            position: 'relative',
+          }}
+        >
+          {/* Suggestions for existing conversation */}
+          {messages.length > 0 && contextEmail && renderSuggestions()}
+          
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <TextField
+              fullWidth
+              placeholder="Type a message..."
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
                 }
               }}
+              disabled={isThinking}
+              multiline
+              maxRows={4}
+              sx={{ mr: 1 }}
             />
+            
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <IconButton
+                color="primary"
+                onClick={() => setShowSettings(!showSettings)}
+                sx={{ mr: 1 }}
+              >
+                <SettingsIcon />
+              </IconButton>
+              
+              <Tooltip title={isListening ? 'Stop listening' : 'Start listening'}>
+                <span>
+                  <IconButton
+                    color={isListening ? 'secondary' : 'primary'}
+                    onClick={toggleListening}
+                    disabled={isThinking || (continuousMode && !isSpeaking)}
+                  >
+                    {isListening ? <MicOffIcon /> : <MicIcon />}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              
+              <Tooltip title="Send message">
+                <span>
+                  <IconButton
+                    color="primary"
+                    onClick={handleSendMessage}
+                    disabled={!inputText.trim() || isThinking}
+                  >
+                    <SendIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Box>
           </Box>
-          
-          <TextField
-            fullWidth
-            multiline
-            maxRows={4}
-            placeholder={continuousMode && isListening ? "Listening... speak or type" : "Type your message here..."}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyPress={handleKeyPress}
-            variant="outlined"
-            disabled={isThinking}
-            sx={{ 
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '20px'
-              }
-            }}
-          />
-          
-          <Tooltip title="Send message">
-            <IconButton 
-              color="primary" 
-              onClick={handleSendMessage}
-              disabled={!inputText.trim() || isThinking}
-              sx={{ ml: 1, bgcolor: inputText.trim() ? 'primary.main' : 'inherit', color: inputText.trim() ? 'white' : 'inherit' }}
-            >
-              <SendIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      </DialogActions>
+        </Paper>
+      </DialogContent>
       
-      {/* Status indicator for continuous mode */}
+      {/* Continuous mode floating button */}
       {continuousMode && (
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            bottom: 20, 
-            left: '50%', 
-            transform: 'translateX(-50%)',
-            bgcolor: 'rgba(0,0,0,0.6)',
-            color: 'white',
-            px: 2,
-            py: 0.5,
-            borderRadius: 4,
-            fontSize: '0.8rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            zIndex: 1000
+        <Fab
+          color={isListening ? 'secondary' : 'primary'}
+          sx={{
+            position: 'absolute',
+            bottom: 100,
+            right: 16,
+            animation: isListening ? `${pulseRing} 1.5s infinite` : 'none',
           }}
+          onClick={toggleListening}
+          disabled={isThinking || isSpeaking}
         >
-          {isListening && (
-            <>
-              <CircularProgress size={12} color="secondary" />
-              <span>Listening...</span>
-            </>
-          )}
-          {isSpeaking && (
-            <>
-              <SpeakIcon fontSize="small" />
-              <span>Speaking...</span>
-            </>
-          )}
-          {!isListening && !isSpeaking && !isThinking && (
-            <>
-              <span>Continuous mode active. Waiting...</span>
-            </>
-          )}
-        </Box>
+          <Badge color="error" variant="dot" invisible={!isSpeaking}>
+            {isListening ? <ContinuousMicIcon /> : <MicIcon />}
+          </Badge>
+        </Fab>
       )}
       
-      {/* Status indicator for gesture mode */}
-      {gestureMode && cameraActive && !isListening && !isThinking && !isSpeaking && (
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            top: 80, 
-            right: 24,
-            bgcolor: 'rgba(0,0,0,0.6)',
-            color: 'white',
-            px: 2,
-            py: 0.5,
-            borderRadius: 4,
-            fontSize: '0.8rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            zIndex: 1000
+      {/* Gesture mode button */}
+      {cameraActive && (
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: 'none',
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            top: 0,
+            left: 0,
+            zIndex: -1,
           }}
-        >
-          <VideocamIcon fontSize="small" />
-          <span>Wave to activate</span>
-        </Box>
+        />
       )}
+      <video
+        ref={videoRef}
+        style={{
+          display: 'none',
+          position: 'absolute',
+          width: '100%',
+          height: '100%',
+          top: 0,
+          left: 0,
+          zIndex: -1,
+        }}
+      />
     </Dialog>
   );
 };

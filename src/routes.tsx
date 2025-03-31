@@ -17,6 +17,8 @@ import { EmailDashboard } from './components/Dashboard/EmailDashboard';
 import OnboardingControls from './pages/Admin/OnboardingControls';
 import AdminOnboarding from './pages/AdminOnboarding';
 import CalendarDashboard from './pages/CalendarDashboard';
+import { TestingDashboard } from './components/Dashboard/TestingDashboard';
+import GraphVisualizer from './pages/GraphVisualizer';
 
 // Placeholder component for upcoming dashboards
 const ComingSoonDashboard: React.FC<{title: string}> = ({title}) => {
@@ -99,6 +101,16 @@ const AppRoutesWithAuth: React.FC = () => {
         } 
       />
       <Route 
+        path="/graph-visualizer" 
+        element={
+          <ProtectedRoute>
+            <AuthenticatedLayout>
+              <GraphVisualizer />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
         path="/chat-dashboard" 
         element={
           <ProtectedRoute>
@@ -157,6 +169,16 @@ const AppRoutesWithAuth: React.FC = () => {
           </AuthenticatedLayout>
         </ProtectedRoute>
       } />
+      <Route 
+        path="/test-dashboard" 
+        element={
+          <ProtectedRoute>
+            <AuthenticatedLayout>
+              <TestingDashboard />
+            </AuthenticatedLayout>
+          </ProtectedRoute>
+        } 
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

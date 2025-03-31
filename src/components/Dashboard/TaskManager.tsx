@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom';
 
 import taskService, { Task, TaskStatus, TaskPriority } from '@/services/taskService';
 import ActionButtons from '@/components/shared/ActionButtons';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 interface TaskManagerProps {
   maxTasks?: number;
@@ -40,6 +41,7 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ maxTasks = 5 }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { openSpeakToMe } = useDashboardContext();
 
   // Fetch prioritized tasks
   useEffect(() => {
@@ -104,7 +106,8 @@ export const TaskManager: React.FC<TaskManagerProps> = ({ maxTasks = 5 }) => {
 
   const handleAskASTI = (type: 'email' | 'calendar' | 'task' | 'wellbeing', taskId?: string) => {
     console.log(`Asking ASTI about task ${taskId}`);
-    // This would trigger the ASTI dialog with context about this task
+    // Use the DashboardContext to open the SpeakToMe dialog
+    openSpeakToMe();
   };
 
   // Handle task completion

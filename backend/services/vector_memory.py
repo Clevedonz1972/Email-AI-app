@@ -1,332 +1,400 @@
-from typing import List, Dict, Any, Optional, Tuple, Union
-import numpy as np
-import json
+"""
+Vector Memory Service
+Handles interaction with ChromaDB for vector storage and retrieval
+"""
+
+from typing import List, Dict, Any, Optional, Union
+from pydantic import BaseModel
+import chromadb
+from chromadb.utils import embedding_functions
 import os
-import uuid
+import json
+import logging
 from datetime import datetime
-from pathlib import Path
-from pydantic import BaseModel, Field
+import asyncio
+from enum import Enum
+import uuid
 
-# For actual embedding, we would use a proper model like OpenAI's embeddings
-# This is a simple mock for development purposes
-try:
-    from openai import AsyncOpenAI
-    HAS_OPENAI = True
-except ImportError:
-    HAS_OPENAI = False
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-from backend.config import settings
-from backend.utils.logger import logger
+class MemoryType(str, Enum):
+    EMAIL = "email"
+    TASK = "task"
+    CONVERSATION = "conversation"
+    KNOWLEDGE = "knowledge"
 
+class Memory(BaseModel):
+    id: str
+    type: MemoryType
+    content: str
+    timestamp: int
+    metadata: Optional[Dict[str, Any]] = None
+    embedding: Optional[List[float]] = None
 
-class MemoryItem(BaseModel):
-    """A single memory item in the vector store"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    text: str
-    embedding: List[float] = []
-    metadata: Dict[str, Any] = {}
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    type: str = "general"  # email, calendar, note, conversation
-    user_id: str
-    importance: float = 0.5  # 0-1 range for importance/relevance to user
-    expiry: Optional[datetime] = None  # When this memory should expire (if applicable)
-    last_accessed: Optional[datetime] = None  # When this memory was last accessed
-    access_count: int = 0  # How many times this memory has been accessed
+class MemoryQueryResult(BaseModel):
+    memory: Memory
+    score: float
 
-
-class VectorMemoryStore:
-    """In-memory vector store implementation for development
+class VectorMemoryService:
+    """Service for handling vector memory operations with ChromaDB"""
     
-    In production, this would be replaced by a proper vector database
-    like Pinecone, Weaviate, or Chroma.
-    """
-    def __init__(self, embedding_dim: int = 1536, persist_dir: Optional[str] = None):
-        self.items: Dict[str, MemoryItem] = {}
-        self.embedding_dim = embedding_dim
-        self.persist_dir = persist_dir
-        self.embeddings_map: Dict[str, List[float]] = {}  # id -> embedding
-        
-        # Create OpenAI client if available
+    def __init__(self):
+        """Initialize the vector memory service"""
         self.client = None
-        if HAS_OPENAI and hasattr(settings, "OPENAI_API_KEY"):
-            self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.collection = None
+        self.collection_name = "asti_memory"
+        self.embedding_function = None
+        self.initialized = False
         
-        # Load persisted data if available
-        if persist_dir:
-            self._load_persisted_data()
+        # Initialize async
+        asyncio.create_task(self.initialize())
     
-    async def add_item(self, text: str, metadata: Dict[str, Any], 
-                       user_id: str, item_type: str = "general", 
-                       importance: float = 0.5) -> str:
-        """Add a new item to the vector store"""
-        # Generate embedding
-        embedding = await self.generate_embedding(text)
-        
-        # Create memory item
-        item = MemoryItem(
-            text=text,
-            embedding=embedding,
-            metadata=metadata,
-            user_id=user_id,
-            type=item_type,
-            importance=importance
-        )
-        
-        # Store item
-        self.items[item.id] = item
-        self.embeddings_map[item.id] = embedding
-        
-        # Persist data if configured
-        if self.persist_dir:
-            self._persist_data()
+    async def initialize(self):
+        """Initialize the ChromaDB client and collection"""
+        try:
+            # Check for environment settings
+            persistent_dir = os.environ.get("CHROMADB_PERSISTENT_DIR", "./data/chromadb")
+            host = os.environ.get("CHROMADB_HOST")
+            port = os.environ.get("CHROMADB_PORT")
             
-        return item.id
-    
-    async def search(self, query: str, user_id: str, limit: int = 5, 
-                     filters: Optional[Dict[str, Any]] = None) -> List[Tuple[MemoryItem, float]]:
-        """Search for similar items in the vector store"""
-        # Generate embedding for query
-        query_embedding = await self.generate_embedding(query)
-        
-        # Filter items by user_id and any additional filters
-        filtered_items = self._apply_filters(user_id, filters)
-        
-        # If no items match, return empty list
-        if not filtered_items:
-            return []
-        
-        # Calculate similarity scores
-        similarities = []
-        for item_id, item in filtered_items.items():
-            if not item.embedding:
-                continue
-                
-            similarity = self._calculate_similarity(query_embedding, item.embedding)
-            similarities.append((item, similarity))
-        
-        # Sort by similarity (highest first)
-        similarities.sort(key=lambda x: x[1], reverse=True)
-        
-        # Update access information for retrieved items
-        now = datetime.utcnow()
-        for item, _ in similarities[:limit]:
-            item.last_accessed = now
-            item.access_count += 1
-            self.items[item.id] = item
-        
-        # Persist changes if configured
-        if self.persist_dir:
-            self._persist_data()
+            # Use OpenAI embedding function
+            self.embedding_function = embedding_functions.OpenAIEmbeddingFunction(
+                api_key=os.environ.get("OPENAI_API_KEY"),
+                model_name="text-embedding-3-small"
+            )
             
-        return similarities[:limit]
-    
-    async def generate_embedding(self, text: str) -> List[float]:
-        """Generate an embedding for the given text"""
-        if self.client:
+            # Initialize client (either persistent or in-memory)
+            if host and port:
+                # Connect to running ChromaDB instance
+                logger.info(f"Connecting to ChromaDB at {host}:{port}")
+                self.client = chromadb.HttpClient(host=host, port=port)
+            else:
+                # Use persistent local storage
+                os.makedirs(persistent_dir, exist_ok=True)
+                logger.info(f"Using persistent ChromaDB at {persistent_dir}")
+                self.client = chromadb.PersistentClient(path=persistent_dir)
+            
+            # Get or create collection
             try:
-                # Use OpenAI to generate embeddings
-                response = await self.client.embeddings.create(
-                    input=text,
-                    model="text-embedding-ada-002"  # or the latest model
+                self.collection = self.client.get_collection(
+                    name=self.collection_name,
+                    embedding_function=self.embedding_function
                 )
-                return response.data[0].embedding
+                logger.info(f"Using existing collection: {self.collection_name}")
             except Exception as e:
-                logger.error(f"Error generating embedding: {str(e)}")
-                # Fall back to mock embeddings
-        
-        # For development/testing: create a mock embedding of the right dimensionality
-        # In a real system, this would use a proper embedding model
-        np.random.seed(hash(text) % 2**32)
-        return list(np.random.randn(self.embedding_dim).astype(float))
-    
-    def get_item(self, item_id: str) -> Optional[MemoryItem]:
-        """Get a specific item by ID"""
-        item = self.items.get(item_id)
-        if item:
-            # Update access information
-            item.last_accessed = datetime.utcnow()
-            item.access_count += 1
-            self.items[item_id] = item
+                logger.info(f"Creating new collection: {self.collection_name}")
+                self.collection = self.client.create_collection(
+                    name=self.collection_name,
+                    embedding_function=self.embedding_function
+                )
             
-            # Persist changes if configured
-            if self.persist_dir:
-                self._persist_data()
-        
-        return item
+            self.initialized = True
+            logger.info("Vector memory service initialized successfully")
+        except Exception as e:
+            logger.error(f"Error initializing vector memory service: {e}")
+            # Fall back to in-memory client if persistent fails
+            if not self.client:
+                logger.info("Falling back to in-memory ChromaDB")
+                self.client = chromadb.EphemeralClient()
+                self.collection = self.client.create_collection(
+                    name=self.collection_name,
+                    embedding_function=self.embedding_function
+                )
+                self.initialized = True
     
-    def delete_item(self, item_id: str) -> bool:
-        """Delete an item from the store"""
-        if item_id in self.items:
-            del self.items[item_id]
-            if item_id in self.embeddings_map:
-                del self.embeddings_map[item_id]
+    async def _ensure_initialized(self):
+        """Ensure the service is initialized before use"""
+        if not self.initialized:
+            await self.initialize()
+            # Wait for initialization with timeout
+            for _ in range(10):
+                if self.initialized:
+                    break
+                await asyncio.sleep(0.5)
             
-            # Persist changes if configured
-            if self.persist_dir:
-                self._persist_data()
+            if not self.initialized:
+                raise Exception("Vector memory service failed to initialize")
+    
+    async def store_memory(self, memory: Memory) -> Memory:
+        """Store a memory with its vector embedding"""
+        await self._ensure_initialized()
+        
+        try:
+            # Generate embedding if not provided
+            if not memory.embedding and memory.content:
+                # This will use the embedding function from chromadb
+                # But we don't need to actually generate it manually as ChromaDB will do it
+                pass
+            
+            # Convert metadata to JSON serializable format
+            metadata = {}
+            if memory.metadata:
+                metadata = {k: v for k, v in memory.metadata.items() if v is not None}
+                # Convert non-serializable values to strings
+                for k, v in metadata.items():
+                    if not isinstance(v, (str, int, float, bool, list, dict, type(None))):
+                        metadata[k] = str(v)
+            
+            # Add required fields to metadata
+            metadata["type"] = memory.type
+            metadata["content"] = memory.content
+            metadata["timestamp"] = memory.timestamp
+            
+            # Add to collection
+            self.collection.add(
+                ids=[memory.id],
+                embeddings=[memory.embedding] if memory.embedding else None,
+                metadatas=[metadata]
+            )
+            
+            return memory
+        except Exception as e:
+            logger.error(f"Error storing memory: {e}")
+            raise
+    
+    async def query_memories(
+        self, 
+        query: str,
+        embedding: Optional[List[float]] = None,
+        where: Optional[Dict[str, Any]] = None,
+        limit: int = 5,
+        threshold: float = 0.1
+    ) -> List[MemoryQueryResult]:
+        """Find memories related to a query using vector similarity"""
+        await self._ensure_initialized()
+        
+        try:
+            # Execute query
+            results = self.collection.query(
+                query_texts=[query] if not embedding else None,
+                query_embeddings=[embedding] if embedding else None,
+                n_results=limit,
+                where=where
+            )
+            
+            # Format results
+            memory_results = []
+            
+            if not results["ids"] or not results["ids"][0]:
+                return []
+            
+            for i, memory_id in enumerate(results["ids"][0]):
+                metadata = results["metadatas"][0][i]
+                score = 1.0 - (results["distances"][0][i] if "distances" in results else 0.0)
                 
-            return True
-        
-        return False
-    
-    def get_items_by_type(self, user_id: str, item_type: str, 
-                          limit: int = 100) -> List[MemoryItem]:
-        """Get items of a specific type"""
-        items = [
-            item for item in self.items.values() 
-            if item.user_id == user_id and item.type == item_type
-        ]
-        
-        # Sort by recency (newest first)
-        items.sort(key=lambda x: x.created_at, reverse=True)
-        
-        return items[:limit]
-    
-    def update_item_metadata(self, item_id: str, metadata: Dict[str, Any]) -> bool:
-        """Update an item's metadata"""
-        if item_id in self.items:
-            item = self.items[item_id]
-            # Update metadata, preserving existing keys that aren't being updated
-            item.metadata = {**item.metadata, **metadata}
-            self.items[item_id] = item
-            
-            # Persist changes if configured
-            if self.persist_dir:
-                self._persist_data()
+                # Skip if below threshold
+                if score < threshold:
+                    continue
                 
+                # Extract fields from metadata
+                memory_type = metadata.get("type", MemoryType.KNOWLEDGE)
+                content = metadata.get("content", "")
+                timestamp = metadata.get("timestamp", int(datetime.now().timestamp() * 1000))
+                
+                # Remove extracted fields from metadata
+                metadata_copy = metadata.copy()
+                if "type" in metadata_copy:
+                    del metadata_copy["type"]
+                if "content" in metadata_copy:
+                    del metadata_copy["content"]
+                if "timestamp" in metadata_copy:
+                    del metadata_copy["timestamp"]
+                
+                # Get embedding if available
+                embedding = None
+                if "embeddings" in results and results["embeddings"]:
+                    embedding = results["embeddings"][0][i]
+                
+                # Create memory and result
+                memory = Memory(
+                    id=memory_id,
+                    type=memory_type,
+                    content=content,
+                    timestamp=timestamp,
+                    metadata=metadata_copy,
+                    embedding=embedding
+                )
+                
+                memory_results.append(MemoryQueryResult(
+                    memory=memory,
+                    score=score
+                ))
+            
+            return memory_results
+        except Exception as e:
+            logger.error(f"Error querying memories: {e}")
+            raise
+    
+    async def get_memories(self, where: Optional[Dict[str, Any]] = None) -> List[Memory]:
+        """Get memories matching a filter"""
+        await self._ensure_initialized()
+        
+        try:
+            # Get memories from collection
+            results = self.collection.get(
+                where=where
+            )
+            
+            # Format results
+            memories = []
+            
+            if not results["ids"]:
+                return []
+            
+            for i, memory_id in enumerate(results["ids"]):
+                metadata = results["metadatas"][i]
+                
+                # Extract fields from metadata
+                memory_type = metadata.get("type", MemoryType.KNOWLEDGE)
+                content = metadata.get("content", "")
+                timestamp = metadata.get("timestamp", int(datetime.now().timestamp() * 1000))
+                
+                # Remove extracted fields from metadata
+                metadata_copy = metadata.copy()
+                if "type" in metadata_copy:
+                    del metadata_copy["type"]
+                if "content" in metadata_copy:
+                    del metadata_copy["content"]
+                if "timestamp" in metadata_copy:
+                    del metadata_copy["timestamp"]
+                
+                # Get embedding if available
+                embedding = None
+                if "embeddings" in results and results["embeddings"]:
+                    embedding = results["embeddings"][i]
+                
+                # Create memory
+                memory = Memory(
+                    id=memory_id,
+                    type=memory_type,
+                    content=content,
+                    timestamp=timestamp,
+                    metadata=metadata_copy,
+                    embedding=embedding
+                )
+                
+                memories.append(memory)
+            
+            # Sort by timestamp (newest first)
+            memories.sort(key=lambda x: x.timestamp, reverse=True)
+            
+            return memories
+        except Exception as e:
+            logger.error(f"Error getting memories: {e}")
+            raise
+    
+    async def get_memory_by_id(self, memory_id: str) -> Optional[Memory]:
+        """Get a memory by ID"""
+        await self._ensure_initialized()
+        
+        try:
+            # Get memory from collection
+            results = self.collection.get(
+                ids=[memory_id]
+            )
+            
+            if not results["ids"]:
+                return None
+            
+            # Format result
+            metadata = results["metadatas"][0]
+            
+            # Extract fields from metadata
+            memory_type = metadata.get("type", MemoryType.KNOWLEDGE)
+            content = metadata.get("content", "")
+            timestamp = metadata.get("timestamp", int(datetime.now().timestamp() * 1000))
+            
+            # Remove extracted fields from metadata
+            metadata_copy = metadata.copy()
+            if "type" in metadata_copy:
+                del metadata_copy["type"]
+            if "content" in metadata_copy:
+                del metadata_copy["content"]
+            if "timestamp" in metadata_copy:
+                del metadata_copy["timestamp"]
+            
+            # Get embedding if available
+            embedding = None
+            if "embeddings" in results and results["embeddings"]:
+                embedding = results["embeddings"][0]
+            
+            # Create memory
+            memory = Memory(
+                id=memory_id,
+                type=memory_type,
+                content=content,
+                timestamp=timestamp,
+                metadata=metadata_copy,
+                embedding=embedding
+            )
+            
+            return memory
+        except Exception as e:
+            logger.error(f"Error getting memory by ID: {e}")
+            raise
+    
+    async def delete_memory(self, memory_id: str) -> bool:
+        """Delete a memory by ID"""
+        await self._ensure_initialized()
+        
+        try:
+            # Delete memory from collection
+            self.collection.delete(
+                ids=[memory_id]
+            )
             return True
-        
-        return False
+        except Exception as e:
+            logger.error(f"Error deleting memory: {e}")
+            raise
     
-    def _apply_filters(self, user_id: str, filters: Optional[Dict[str, Any]] = None) -> Dict[str, MemoryItem]:
-        """Apply filters to the items"""
-        # Always filter by user_id
-        result = {
-            item_id: item for item_id, item in self.items.items() 
-            if item.user_id == user_id
-        }
+    async def delete_memories(self, where: Optional[Dict[str, Any]] = None) -> bool:
+        """Delete memories matching a filter"""
+        await self._ensure_initialized()
         
-        # Apply additional filters if provided
-        if filters:
-            for key, value in filters.items():
-                if key == "type":
-                    result = {
-                        item_id: item for item_id, item in result.items() 
-                        if item.type == value
-                    }
-                elif key == "min_importance":
-                    result = {
-                        item_id: item for item_id, item in result.items() 
-                        if item.importance >= value
-                    }
-                elif key == "created_after":
-                    result = {
-                        item_id: item for item_id, item in result.items() 
-                        if item.created_at >= value
-                    }
-                elif key == "created_before":
-                    result = {
-                        item_id: item for item_id, item in result.items() 
-                        if item.created_at <= value
-                    }
-                elif key.startswith("metadata."):
-                    metadata_key = key[9:]  # Remove "metadata." prefix
-                    result = {
-                        item_id: item for item_id, item in result.items() 
-                        if metadata_key in item.metadata and item.metadata[metadata_key] == value
-                    }
-        
-        return result
+        try:
+            # Get matching IDs first
+            results = self.collection.get(
+                where=where
+            )
+            
+            if not results["ids"]:
+                return True
+            
+            # Delete memory from collection
+            self.collection.delete(
+                ids=results["ids"]
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting memories: {e}")
+            raise
+
+# Create a singleton instance of the vector memory service
+vector_memory = VectorMemoryService()
+
+async def add_memory(content: str, metadata: Dict[str, Any]) -> Memory:
+    """Add a memory to the vector store"""
+    memory_id = f"memory-{uuid.uuid4()}"
+    timestamp = int(datetime.now().timestamp() * 1000)
     
-    def _calculate_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
-        """Calculate cosine similarity between two embeddings"""
-        if not embedding1 or not embedding2:
-            return 0.0
-            
-        # Convert to numpy arrays for easier calculation
-        vec1 = np.array(embedding1)
-        vec2 = np.array(embedding2)
-        
-        # Compute cosine similarity
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-        
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-            
-        return np.dot(vec1, vec2) / (norm1 * norm2)
+    memory_type = metadata.get("type", MemoryType.KNOWLEDGE)
     
-    def _persist_data(self):
-        """Persist the vector store data to disk"""
-        if not self.persist_dir:
-            return
-            
-        # Create directory if it doesn't exist
-        os.makedirs(self.persist_dir, exist_ok=True)
-        
-        # Save items
-        items_path = Path(self.persist_dir) / "memory_items.json"
-        with open(items_path, "w") as f:
-            # Convert items to dictionaries
-            items_dict = {
-                item_id: item.dict() for item_id, item in self.items.items()
-            }
-            json.dump(items_dict, f)
+    memory = Memory(
+        id=memory_id,
+        type=memory_type,
+        content=content,
+        timestamp=timestamp,
+        metadata=metadata
+    )
     
-    def _load_persisted_data(self):
-        """Load persisted data from disk"""
-        if not self.persist_dir:
-            return
-            
-        items_path = Path(self.persist_dir) / "memory_items.json"
-        if items_path.exists():
-            try:
-                with open(items_path, "r") as f:
-                    items_dict = json.load(f)
-                    
-                # Convert dictionaries back to MemoryItem objects
-                for item_id, item_data in items_dict.items():
-                    self.items[item_id] = MemoryItem(**item_data)
-                    if "embedding" in item_data:
-                        self.embeddings_map[item_id] = item_data["embedding"]
-            except Exception as e:
-                logger.error(f"Error loading persisted data: {str(e)}")
+    return await vector_memory.store_memory(memory)
 
-
-# Create a global instance for easy access
-vector_memory = VectorMemoryStore(
-    persist_dir=os.path.join(os.path.dirname(__file__), "..", "data", "vector_memory")
-)
-
-async def recall_relevant_context(query: str, user_id: str, limit: int = 5, 
-                                 filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
-    """Find memories relevant to the given query"""
-    try:
-        results = await vector_memory.search(query, user_id, limit, filters)
-        
-        # Convert to a more useful format
-        context = []
-        for item, score in results:
-            context.append({
-                "id": item.id,
-                "text": item.text,
-                "metadata": item.metadata,
-                "type": item.type,
-                "created_at": item.created_at.isoformat(),
-                "relevance_score": score
-            })
-            
-        return context
-    except Exception as e:
-        logger.error(f"Error recalling context: {str(e)}")
-        return []
-
-
-async def add_memory(text: str, metadata: Dict[str, Any], user_id: str, 
-                    item_type: str = "general", importance: float = 0.5) -> str:
-    """Add a new memory to the vector store"""
-    try:
-        return await vector_memory.add_item(text, metadata, user_id, item_type, importance)
-    except Exception as e:
-        logger.error(f"Error adding memory: {str(e)}")
-        return "" 
+async def recall_relevant_context(query: str, where: Optional[Dict[str, Any]] = None, limit: int = 5) -> List[MemoryQueryResult]:
+    """Recall relevant memories based on a query"""
+    return await vector_memory.query_memories(
+        query=query,
+        where=where,
+        limit=limit
+    ) 

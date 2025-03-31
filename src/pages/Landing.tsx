@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Container, Typography, Button, useTheme, useMediaQuery, Fade, Paper } from '@mui/material';
+import { Container, Box, Typography, Button, useTheme, useMediaQuery, Fade } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useAccessibility } from '../contexts/AccessibilityContext';
@@ -45,7 +45,7 @@ export const Landing: React.FC = () => {
             {/* Neurodiversity Ltd Logo - clickable for authenticated users */}
             <Box 
               component="img"
-              src="/assets/Neurodivarsity ltd logo.png"
+              src="/assets/neurodivarsity-logo.png"
               alt="Neurodiversity Ltd"
               onClick={isAuthenticated ? () => navigate('/dashboard') : undefined}
               sx={{ 

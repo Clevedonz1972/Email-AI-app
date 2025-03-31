@@ -36,6 +36,10 @@ export interface EmailMessage {
     completed: boolean;
   }>;
   sentiment_score: number;
+  ai_summary?: string;
+  ai_emotional_tone?: string;
+  ai_suggested_action?: any;
+  embedding_id?: string;
 }
 
 export interface EmailSummary {
@@ -63,4 +67,15 @@ export interface EmailAnalysis {
   priority: Priority;
   action_items: ActionItem[];
   sentiment_score: number;
+  emotional_tone?: string;
+  explicit_expectations?: string[];
+  implicit_expectations?: string[];
+  suggested_actions?: Array<{
+    action: string;
+    steps?: string[];
+    deadline?: string;
+    effort_level?: StressLevel;
+  }>;
+  suggested_response?: string;
+  needs_immediate_attention?: boolean;
 } 

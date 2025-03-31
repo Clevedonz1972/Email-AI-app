@@ -9,6 +9,7 @@ from backend.auth.auth import get_current_user
 from backend.models.user import User
 from backend.services.asti_brain import get_asti_brain, ASTIBrain
 from backend.services.vector_memory import recall_relevant_context, add_memory
+from backend.services.openai_service import get_email_summary_and_suggestion, generate_embedding, generate_daily_brief
 from backend.utils.logger import logger
 
 router = APIRouter(prefix="/asti", tags=["ASTI AI System"])
@@ -130,10 +131,66 @@ class TaskResponse(BaseModel):
 
 @router.get("/daily-brief")
 async def get_daily_brief(current_user: User = Depends(get_current_user)):
-    """Generate a daily brief for the user"""
+    """
+    Generate a personalized daily brief for the user.
+    
+    This endpoint creates a comprehensive daily summary that includes:
+    - Important emails requiring attention
+    - Upcoming calendar events
+    - Suggested tasks and priorities
+    - Wellbeing tips customized to the user's needs
+    
+    The brief is designed to help neurodivergent users start their day
+    with clarity and reduced cognitive load.
+    """
     try:
+        # Get the ASTI brain for this user
         asti_brain = await get_asti_brain(str(current_user.id))
-        brief = await asti_brain.generate_daily_brief()
+        
+        # Get user preferences
+        user_preferences = await asti_brain.get_user_preferences()
+        
+        # Get recent important emails (last 24 hours)
+        recent_emails = await asti_brain.get_important_emails(limit=5)
+        
+        # Get upcoming calendar events (next 24 hours)
+        upcoming_events = await asti_brain.get_upcoming_events(days=1)
+        
+        # Create user context
+        user_context = {
+            "name": current_user.full_name if hasattr(current_user, "full_name") else "",
+            "stress_sensitivity": user_preferences.get("stress_sensitivity", "MEDIUM"),
+            "communication_preferences": user_preferences.get("communication_preferences", "CLEAR"),
+            "action_item_detail": user_preferences.get("action_item_detail", "HIGH"),
+        }
+        
+        # Use OpenAI to generate the daily brief
+        brief = await generate_daily_brief(user_context, recent_emails, upcoming_events)
+        
+        # Add vector memory context if available
+        recent_context = await recall_relevant_context(
+            "What important tasks should I focus on today?",
+            str(current_user.id),
+            limit=3
+        )
+        
+        if recent_context and "items" in recent_context and len(recent_context["items"]) > 0:
+            memory_context = "\n".join([
+                f"- {item.get('text', '')} ({item.get('metadata', {}).get('source', 'memory')})"
+                for item in recent_context["items"]
+            ])
+            brief["context_memory"] = memory_context
+        
+        # Track this daily brief generation
+        logger.info(
+            f"Generated daily brief for user {current_user.id}",
+            extra={
+                "user_id": str(current_user.id),
+                "email_count": len(recent_emails),
+                "event_count": len(upcoming_events)
+            }
+        )
+        
         return brief
     except Exception as e:
         logger.error(f"Error generating daily brief: {str(e)}")
@@ -145,19 +202,113 @@ async def analyze_email(
     email: EmailInput, 
     current_user: User = Depends(get_current_user)
 ):
-    """Analyze an email and store it in the user's knowledge graph"""
+    """
+    Analyze an email and store it in the user's knowledge graph.
+    
+    This endpoint processes an email using ASTI's AI capabilities to provide:
+    - Summary
+    - Emotional tone analysis
+    - Explicit and implicit expectations
+    - Suggested actions with detailed steps
+    - Response templates
+    
+    The analysis is stored in vector memory for future reference and context.
+    """
     try:
         asti_brain = await get_asti_brain(str(current_user.id))
         
         # Set default received_at if not provided
         if not email.received_at:
             email.received_at = datetime.utcnow().isoformat()
-            
-        # Process the email
-        result = await asti_brain.process_email(email.dict())
-        return result
+        
+        # Build the full email text with subject and content
+        full_email_text = f"Subject: {email.subject}\n\n{email.content}"
+        
+        # Get user preferences from ASTI brain
+        user_preferences = await asti_brain.get_user_preferences()
+        
+        # Create user context for context-aware analysis
+        user_context = {
+            "stress_sensitivity": user_preferences.get("stress_sensitivity", "MEDIUM"),
+            "communication_preferences": user_preferences.get("communication_preferences", "CLEAR"),
+            "action_item_detail": user_preferences.get("action_item_detail", "HIGH"),
+            "use_advanced_model": True  # Use GPT-4 for email analysis
+        }
+        
+        # Get AI analysis using the enhanced email summary feature
+        ai_analysis = await get_email_summary_and_suggestion(full_email_text, user_context)
+        
+        # Generate embedding for vector search
+        embedding = await generate_embedding(full_email_text)
+        
+        # Store embedding in vector memory
+        memory_metadata = {
+            "email_id": str(uuid.uuid4()),  # Generate unique ID for this email
+            "subject": email.subject,
+            "sender": email.sender,
+            "received_at": email.received_at,
+            "emotional_tone": ai_analysis.get("emotional_tone", "unknown"),
+            "stress_level": ai_analysis.get("stress_level", "MEDIUM"),
+            "needs_immediate_attention": ai_analysis.get("needs_immediate_attention", False),
+            "has_action_items": len(ai_analysis.get("suggested_actions", [])) > 0,
+            "source": "email"
+        }
+        
+        # Determine importance based on analysis
+        importance = 0.5  # Default importance
+        if ai_analysis.get("needs_immediate_attention", False):
+            importance = 0.9
+        elif ai_analysis.get("stress_level") == "HIGH":
+            importance = 0.8
+        elif ai_analysis.get("stress_level") == "MEDIUM":
+            importance = 0.6
+        
+        # Add to vector memory
+        memory_id = await add_memory(
+            full_email_text, 
+            memory_metadata, 
+            str(current_user.id), 
+            "email", 
+            importance
+        )
+        
+        # Add the analysis to ASTI's working memory
+        await asti_brain.add_email_analysis(email.subject, ai_analysis, memory_id)
+        
+        # Create email object with all analysis results
+        email_dict = email.dict()
+        email_dict.update({
+            "ai_analysis": ai_analysis,
+            "memory_id": memory_id,
+            "embedding_available": memory_id is not None
+        })
+        
+        # Extract key email insights for response
+        key_insights = {
+            "subject": email.subject,
+            "summary": ai_analysis.get("summary", "No summary available"),
+            "emotional_tone": ai_analysis.get("emotional_tone", "neutral"),
+            "stress_level": ai_analysis.get("stress_level", "MEDIUM"),
+            "suggested_actions": ai_analysis.get("suggested_actions", []),
+            "needs_immediate_attention": ai_analysis.get("needs_immediate_attention", False),
+            "memory_id": memory_id
+        }
+        
+        # Log successful analysis
+        logger.info(
+            f"Email analysis complete: {email.subject}",
+            extra={
+                "user_id": str(current_user.id),
+                "email_subject": email.subject,
+                "stress_level": ai_analysis.get("stress_level", "MEDIUM"),
+                "has_actions": len(ai_analysis.get("suggested_actions", [])) > 0
+            }
+        )
+        
+        return key_insights
+        
     except Exception as e:
-        logger.error(f"Error analyzing email: {str(e)}")
+        logger.error(f"Error in analyze_email endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

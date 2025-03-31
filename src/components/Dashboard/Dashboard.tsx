@@ -43,6 +43,8 @@ import {
   PauseCircleOutline as PauseCircleOutlineIcon
 } from '@mui/icons-material';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
+import { useEmailContext } from '../../contexts/EmailContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { emailService } from '../../services/emailService';
 import type { EmailMessage, Category } from '../../types/email';
 import { DailyBrief } from '../Dashboard/DailyBrief';
@@ -226,7 +228,9 @@ const SupportDialog: React.FC<{
 
 export const Dashboard: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { preferences } = useAccessibility();
+  const { openSpeakToMe } = useDashboardContext();
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
@@ -245,7 +249,6 @@ export const Dashboard: React.FC = () => {
     severity: 'success',
   });
   const contentRef = React.useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
   
   const [date, setDate] = useState(new Date());
   
@@ -422,6 +425,12 @@ export const Dashboard: React.FC = () => {
   // Handle closing support dialog
   const handleCloseSupportDialog = () => {
     setSupportDialogOpen(false);
+  };
+  
+  // Handle ActionButtons Ask ASTI
+  const handleAskASTI = (type: 'email' | 'calendar' | 'task' | 'wellbeing') => {
+    console.log(`Asking ASTI about ${type}`);
+    openSpeakToMe();
   };
   
   return (

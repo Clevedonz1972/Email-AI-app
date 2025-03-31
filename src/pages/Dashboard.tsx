@@ -39,10 +39,11 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { DailyBrief } from '@/components/Dashboard/DailyBrief';
 import { WeatherWidget } from '@/components/Weather/WeatherWidget';
 import { OnboardingTutorial } from '@/components/Onboarding/OnboardingTutorial';
-import SpeakToMe from '@/components/Conversation/SpeakToMe';
+import { EmailAIDialog } from '@/components/Conversation/EmailAIDialog';
 import QuickCalendar from '@/components/Dashboard/Calendar/QuickCalendar';
 import { calendarService, CalendarEvent } from '@/services/calendarService';
 import { TaskManager } from '@/components/Dashboard/TaskManager';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 // Support dialog component
 const SupportDialog: React.FC<{
@@ -399,7 +400,7 @@ const Dashboard: React.FC = () => {
   const [isNewUser, setIsNewUser] = useState<boolean>(() => {
     return localStorage.getItem('onboardingComplete') !== 'true';
   });
-  const [showSpeakToMe, setShowSpeakToMe] = useState(false);
+  const { openSpeakToMe, closeSpeakToMe, isSpeakToMeOpen } = useDashboardContext();
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(true);
   
@@ -473,17 +474,7 @@ const Dashboard: React.FC = () => {
   const handleCloseSupportDialog = () => {
     setSupportDialogOpen(false);
   };
-
-  // Handle opening SpeakToMe dialog
-  const handleOpenSpeakToMe = () => {
-    setShowSpeakToMe(true);
-  };
   
-  // Handle closing SpeakToMe dialog
-  const handleCloseSpeakToMe = () => {
-    setShowSpeakToMe(false);
-  };
-
   // Handle navigation to app dashboards
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -1133,81 +1124,17 @@ const Dashboard: React.FC = () => {
         </Grid>
       </Container>
       
-      {/* Stop the World Button - positioned at bottom right */}
-      <Button 
-        variant="contained" 
-        onClick={handleOpenSupportDialog}
-        startIcon={<PauseCircleOutlineIcon sx={{ fontSize: 24 }} />}
-        sx={{ 
-          position: 'fixed', 
-          bottom: 24, 
-          right: 24, 
-          borderRadius: 28, 
-          px: 3,
-          py: 1.5,
-          bgcolor: theme.palette.mode === 'dark' ? '#d946ef' : '#7c3aed', // Purple in dark/light modes
-          color: '#ffffff',
-          fontWeight: 600,
-          letterSpacing: '0.5px',
-          '&:hover': {
-            backgroundColor: theme.palette.mode === 'dark' ? '#c026d3' : '#6d28d9',
-            transform: 'scale(1.05)',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.4)'
-          },
-          '&:active': {
-            transform: 'scale(0.98)'
-          },
-          transition: 'all 0.2s ease-in-out',
-          zIndex: 1000,
-          boxShadow: '0 6px 16px rgba(0,0,0,0.35), 0 0 0 3px rgba(124, 58, 237, 0.2)'
-        }}
-      >
-        Stop the World
-      </Button>
-      
-      {/* Speak to Me Button - positioned at bottom right next to Stop the World */}
-      <Button 
-        variant="contained" 
-        onClick={handleOpenSpeakToMe}
-        startIcon={<MicIcon sx={{ fontSize: 24 }} />}
-        sx={{ 
-          position: 'fixed', 
-          bottom: 24, 
-          right: 220, // Position it to the left of Stop the World button
-          borderRadius: 28, 
-          px: 3,
-          py: 1.5,
-          bgcolor: theme.palette.mode === 'dark' ? '#2563eb' : '#3b82f6', // Blue in dark/light modes
-          color: '#ffffff',
-          fontWeight: 600,
-          letterSpacing: '0.5px',
-          '&:hover': {
-            backgroundColor: theme.palette.mode === 'dark' ? '#1d4ed8' : '#2563eb',
-            transform: 'scale(1.05)',
-            boxShadow: '0 8px 20px rgba(0,0,0,0.4)'
-          },
-          '&:active': {
-            transform: 'scale(0.98)'
-          },
-          transition: 'all 0.2s ease-in-out',
-          zIndex: 1000,
-          boxShadow: '0 6px 16px rgba(0,0,0,0.35), 0 0 0 3px rgba(59, 130, 246, 0.2)'
-        }}
-      >
-        Speak to Me
-      </Button>
+      {/* ASTI AI Dialog */}
+      <EmailAIDialog 
+        open={isSpeakToMeOpen} 
+        onClose={closeSpeakToMe} 
+      />
       
       {/* Support Dialog */}
       <SupportDialog 
         open={supportDialogOpen}
         onClose={handleCloseSupportDialog}
-        onOpenSpeakToMe={handleOpenSpeakToMe}
-      />
-
-      {/* SpeakToMe Component */}
-      <SpeakToMe
-        open={showSpeakToMe}
-        onClose={handleCloseSpeakToMe}
+        onOpenSpeakToMe={openSpeakToMe}
       />
     </Box>
   );

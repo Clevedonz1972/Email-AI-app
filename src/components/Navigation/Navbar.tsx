@@ -28,6 +28,7 @@ import ChatIcon from '@mui/icons-material/Chat';
 import CallIcon from '@mui/icons-material/Call';
 import GroupsIcon from '@mui/icons-material/Groups';
 import StoreIcon from '@mui/icons-material/Store';
+import BubbleChartIcon from '@mui/icons-material/BubbleChart';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useAccessibility } from '../../contexts/AccessibilityContext';
@@ -147,6 +148,12 @@ export const Navbar: React.FC = () => {
       disabled: true
     },
     { 
+      text: 'Knowledge Graph', 
+      icon: <BubbleChartIcon />, 
+      path: '/graph-visualizer',
+      divider: false
+    },
+    { 
       text: 'Community', 
       icon: <GroupsIcon />, 
       path: '/community',
@@ -159,6 +166,12 @@ export const Navbar: React.FC = () => {
       path: '/marketplace',
       divider: true,
       disabled: true
+    },
+    { 
+      text: 'AI Email Testing', 
+      icon: <PsychologyIcon />, 
+      path: '/test-dashboard',
+      divider: false
     },
     { 
       text: 'Settings', 

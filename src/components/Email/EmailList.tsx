@@ -40,6 +40,7 @@ import { useAccessibility } from '../../contexts/AccessibilityContext';
 import { useKeyboardNavigation } from '../../hooks/useKeyboardNavigation';
 import { emailService } from '../../services/emailService';
 import type { EmailMessage } from '@/types/email';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 interface EmailListProps {
   emails: EmailMessage[];
@@ -48,6 +49,7 @@ interface EmailListProps {
   onMarkRead: (id: number) => void;
   selectedEmailId?: number;
   onSendReply?: (emailId: number, content: string) => Promise<void>;
+  onOpenSpeakToMe?: () => void;
 }
 
 export const EmailList: React.FC<EmailListProps> = ({
@@ -57,8 +59,10 @@ export const EmailList: React.FC<EmailListProps> = ({
   onMarkRead,
   selectedEmailId,
   onSendReply,
+  onOpenSpeakToMe
 }) => {
   const { preferences } = useAccessibility();
+  const { openSpeakToMe } = useDashboardContext();
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   
   // Quick Reply state
@@ -246,6 +250,19 @@ export const EmailList: React.FC<EmailListProps> = ({
       handleSendReply(content);
     }
     handleTemplateMenuClose();
+  };
+
+  // Handle Ask ASTI
+  const handleAskASTI = (event: React.MouseEvent<HTMLElement>, email: EmailMessage) => {
+    event.stopPropagation();
+    console.log(`Asking ASTI about email ${email.id}`);
+    
+    // Use the prop if available, otherwise use the context
+    if (onOpenSpeakToMe) {
+      onOpenSpeakToMe();
+    } else {
+      openSpeakToMe();
+    }
   };
 
   const renderEmailItem = (email: EmailMessage, index: number) => (

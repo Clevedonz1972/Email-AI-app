@@ -1,13 +1,17 @@
 from pydantic import BaseSettings, Field
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any
+from dotenv import load_dotenv
 
 # Get the backend directory (where config.py is located)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Force set the JWT_SECRET_KEY
 os.environ["JWT_SECRET_KEY"] = "your_super_secret_key_for_development_only"
+
+# Load environment variables
+load_dotenv()
 
 class Settings(BaseSettings):
     DATABASE_URL: str
@@ -38,6 +42,28 @@ class Settings(BaseSettings):
     USE_CREDENTIALS: bool = Field(default=True)
     VALIDATE_CERTS: bool = Field(default=True)
 
+    # Neo4j settings
+    NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+    NEO4J_USER: str = os.getenv("NEO4J_USER", "neo4j")
+    NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "password")
+    
+    # OpenAI settings
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+    OPENAI_EMBEDDING_MODEL: str = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
+    
+    # Vector memory settings
+    VECTOR_MEMORY_COLLECTION: str = os.getenv("VECTOR_MEMORY_COLLECTION", "email_memory")
+    VECTOR_MEMORY_DIMENSION: int = int(os.getenv("VECTOR_MEMORY_DIMENSION", "1536"))
+    
+    # Application settings
+    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
+    RATE_LIMIT_PERIOD: int = int(os.getenv("RATE_LIMIT_PERIOD", "60"))
+    
+    # Cache settings
+    CACHE_TTL: int = int(os.getenv("CACHE_TTL", "3600"))
+    CACHE_MAX_SIZE: int = int(os.getenv("CACHE_MAX_SIZE", "1000"))
+
     class Config:
         # Use absolute path for env files
         env_file = str(BASE_DIR / (".env.test" if os.getenv("TESTING") else ".env"))
@@ -58,3 +84,10 @@ print(
         "OPENAI_API_KEY": "***" if settings.OPENAI_API_KEY else None,
     },
 )
+
+def to_dict(self) -> Dict[str, Any]:
+    """Convert settings to dictionary"""
+    return {
+        key: value for key, value in self.__dict__.items()
+        if not key.startswith("_")
+    }

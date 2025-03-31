@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Grid, Paper, Typography, useTheme, CircularProgress, Breadcrumbs, Link, Button } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { EmailList } from '../EmailList/EmailList';
+import { EmailList } from './EmailList';
 import { StressLevelIndicator } from './StressLevelIndicator';
 import { CategoryManager } from './CategoryManager';
 import { AnalyticsSummary } from './AnalyticsSummary';
@@ -12,6 +12,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import EmailIcon from '@mui/icons-material/Email';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import type { EmailMessage, StressLevel } from '@/types/email';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 // Parse query parameters from URL
 function useQuery() {
@@ -47,6 +48,7 @@ export const EmailDashboard: React.FC = () => {
   const navigate = useNavigate();
   const query = useQuery();
   const { emails, loading, error, fetchEmails, refreshEmails } = useEmailContext();
+  const { openSpeakToMe } = useDashboardContext();
   
   // Get filter from URL parameters or default to 'all'
   const filterParam = query.get('filter');
@@ -116,6 +118,12 @@ export const EmailDashboard: React.FC = () => {
 
   const handleBackToDashboard = () => {
     navigate('/dashboard');
+  };
+
+  // Add handler for auto reply
+  const handleAutoReply = (emailId: string) => {
+    console.log('Auto reply for email:', emailId);
+    // Any additional logic for auto reply
   };
 
   // Create a title based on active filters
@@ -209,6 +217,8 @@ export const EmailDashboard: React.FC = () => {
                   isLoading={loading}
                   onMarkRead={handleMarkRead}
                   onFlag={handleFlag}
+                  onOpenSpeakToMe={openSpeakToMe}
+                  onAutoReply={handleAutoReply}
                 />
               )}
             </Paper>

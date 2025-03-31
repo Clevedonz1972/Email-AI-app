@@ -5,6 +5,7 @@ import WatchLaterIcon from '@mui/icons-material/WatchLater';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import SendIcon from '@mui/icons-material/Send';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 export type ActionType = 'email' | 'calendar' | 'task' | 'wellbeing';
 
@@ -17,6 +18,7 @@ interface ActionButtonsProps {
   showAutoReply?: boolean;
   size?: 'small' | 'medium' | 'large';
   minimal?: boolean;
+  vertical?: boolean;
 }
 
 export const ActionButtons: React.FC<ActionButtonsProps> = ({
@@ -28,8 +30,10 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   showAutoReply = false,
   size = 'medium',
   minimal = true, // Default to minimal view now
+  vertical = false,
 }) => {
   const { settings } = useSettings();
+  const { openSpeakToMe } = useDashboardContext();
   const isDarkMode = settings.darkMode;
   
   // Size adjustment based on prop
@@ -80,6 +84,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   
   const handleAskASTI = () => {
     if (onAskASTI) onAskASTI(type);
+    openSpeakToMe();
   };
   
   const handleAutoReply = () => {
@@ -87,7 +92,12 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center',
+      flexDirection: vertical ? 'column' : 'row',
+      '& > *': vertical ? { mb: 1 } : { ml: 1 }
+    }}>
       <Tooltip title="Do it now">
         <IconButton 
           sx={primaryIconButtonStyle}
@@ -115,7 +125,8 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
           <QuestionAnswerIcon sx={buttonIconStyle} />
         </IconButton>
       </Tooltip>
-      {showAutoReply && (
+      {/* Always show auto-reply button for email type, and respect showAutoReply prop for other types */}
+      {(type === 'email' || showAutoReply) && (
         <Tooltip title={`Auto-reply to ${type}`}>
           <IconButton 
             sx={secondaryIconButtonStyle}

@@ -11,13 +11,17 @@ from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 from backend.routes import auth_router, email_router, health_router, preferences_router, asti_router
 from backend.routes.analytics import router as analytics_router
+from backend.routes.testing import router as testing_router
 from backend.routes.test_calendar import router as test_calendar_router
+from backend.routes.vector_memory_routes import router as vector_router
+from backend.routes.knowledge_graph_routes import router as graph_router
 from backend.config import settings
 from backend.utils.error_handlers import setup_error_handlers
 from backend.utils.cache import cache_service
 from backend.tasks.worker import celery as celery_app
 from backend.database import Base, engine
 from backend.utils.logger import setup_logger
+import os
 
 # Initialize Sentry for error tracking
 sentry_sdk.init(
@@ -50,9 +54,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+    expose_headers=["*"],
 )
 
 # Set up error handlers
@@ -164,6 +168,27 @@ app.include_router(
     responses={401: {"description": "Unauthorized"}},
 )
 
+# Include testing router
+app.include_router(
+    testing_router,
+    prefix="/api/testing",
+    tags=["testing"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+# Include new memory and knowledge graph routers
+app.include_router(
+    vector_router,
+    tags=["vector-memory"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
+app.include_router(
+    graph_router,
+    tags=["knowledge-graph"],
+    responses={401: {"description": "Unauthorized"}},
+)
+
 # Initialize logger
 logger = setup_logger()
 
@@ -199,3 +224,7 @@ async def shutdown_event():
     # Close Redis connection
     if cache_service.redis:
         cache_service.redis.close()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=port, reload=True)
